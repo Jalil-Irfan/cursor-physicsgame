@@ -3,14 +3,21 @@ const EARTH_RADIUS = 5;
 const MOON_RADIUS = 1.5;
 const PROBE_RADIUS = 0.3;
 const EARTH_MOON_DISTANCE = 30;
-const GRAVITY_CONSTANT = 0.05;
+const GRAVITY_CONSTANT = 0.1; // Increased gravity effect
 const LAGRANGE_THRESHOLD = 4;
-const WINNING_TIME = 30; // Seconds needed to win
-const BALANCE_THRESHOLD = 4; // Distance threshold for "balanced" state
-const SCORE_RATE = 10; // Points per second when perfectly balanced
-const BOUNDARY_RADIUS = EARTH_MOON_DISTANCE * 2; // Boundary radius around the system
+const WINNING_TIME = 30;
+const BALANCE_THRESHOLD = 4;
+const SCORE_RATE = 10;
+const BOUNDARY_RADIUS = EARTH_MOON_DISTANCE * 2;
 const MIN_BOUNDARY = -BOUNDARY_RADIUS;
 const MAX_BOUNDARY = BOUNDARY_RADIUS;
+const THRUST_POWER = 0.012; // Increased thrust power
+const DAMPENING = 0.99; // Adjusted dampening
+const MAX_VELOCITY = 0.5; // Increased max velocity
+const MIN_VELOCITY = 0.0;
+const FORCE_ARROW_SCALE = 50; // Increased scale for better visibility
+const ARROW_MIN_LENGTH = 2; // Minimum arrow length for visibility
+const ARROW_MAX_LENGTH = 15; // Maximum arrow length
 
 // Scene setup
 let scene, camera, renderer, controls;
@@ -256,20 +263,32 @@ function createLagrangePoints() {
 // Enhanced force visualization
 function createForceLines() {
     forceLines = [];
-    const colors = [0xff3333, 0xcccccc]; // Red for Earth, White for Moon
     
-    for (let i = 0; i < 2; i++) {
-        const arrowHelper = new THREE.ArrowHelper(
-            new THREE.Vector3(),
-            probe.position,
-            5,
-            colors[i],
-            1,
-            0.5
-        );
-        scene.add(arrowHelper);
-        forceLines.push(arrowHelper);
-    }
+    // Earth's gravitational force arrow (red)
+    const earthArrow = new THREE.ArrowHelper(
+        new THREE.Vector3(1, 0, 0),
+        new THREE.Vector3(0, 0, 0),
+        5,
+        0xff0000, // Bright red
+        2, // Larger head length
+        1  // Larger head width
+    );
+    earthArrow.line.material.linewidth = 3; // Thicker line
+    
+    // Moon's gravitational force arrow (white)
+    const moonArrow = new THREE.ArrowHelper(
+        new THREE.Vector3(1, 0, 0),
+        new THREE.Vector3(0, 0, 0),
+        5,
+        0xffffff, // Pure white
+        2, // Larger head length
+        1  // Larger head width
+    );
+    moonArrow.line.material.linewidth = 3; // Thicker line
+    
+    scene.add(earthArrow);
+    scene.add(moonArrow);
+    forceLines = [earthArrow, moonArrow];
 }
 
 // Setup mobile controls
@@ -305,45 +324,78 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// Handle keyboard input
+// Handle keyboard input with acceleration
 function onKeyDown(event) {
     if (window.innerWidth > 768) {
-        const moveSpeed = 0.05; // Reduced from 0.1 for finer control
+        if (!probe.acceleration) {
+            probe.acceleration = new THREE.Vector3();
+        }
+        
+        let thrustChanged = false;
+        
         switch(event.key) {
             case 'ArrowUp':
             case 'w':
-                probe.velocity = new THREE.Vector3(0, moveSpeed, 0);
+                probe.acceleration.y = THRUST_POWER;
+                thrustChanged = true;
                 break;
             case 'ArrowDown':
             case 's':
-                probe.velocity = new THREE.Vector3(0, -moveSpeed, 0);
+                probe.acceleration.y = -THRUST_POWER;
+                thrustChanged = true;
                 break;
             case 'ArrowLeft':
             case 'a':
-                probe.velocity = new THREE.Vector3(-moveSpeed, 0, 0);
+                probe.acceleration.x = -THRUST_POWER;
+                thrustChanged = true;
                 break;
             case 'ArrowRight':
             case 'd':
-                probe.velocity = new THREE.Vector3(moveSpeed, 0, 0);
+                probe.acceleration.x = THRUST_POWER;
+                thrustChanged = true;
                 break;
+            case ' ': // Emergency brake
+                probe.velocity.multiplyScalar(0.3);
+                probe.acceleration.set(0, 0, 0);
+                break;
+        }
+        
+        if (thrustChanged) {
+            probe.thrusterActive = true;
+            // Less aggressive velocity reduction when changing direction
+            if (probe.acceleration.x !== 0 && Math.sign(probe.velocity.x) !== Math.sign(probe.acceleration.x)) {
+                probe.velocity.x *= 0.95;
+            }
+            if (probe.acceleration.y !== 0 && Math.sign(probe.velocity.y) !== Math.sign(probe.acceleration.y)) {
+                probe.velocity.y *= 0.95;
+            }
         }
     }
 }
 
 function onKeyUp(event) {
     if (window.innerWidth > 768) {
+        if (!probe.acceleration) {
+            probe.acceleration = new THREE.Vector3();
+        }
+        
         switch(event.key) {
             case 'ArrowUp':
             case 'w':
             case 'ArrowDown':
             case 's':
+                probe.acceleration.y = 0;
+                break;
             case 'ArrowLeft':
             case 'a':
             case 'ArrowRight':
             case 'd':
-                probe.velocity = new THREE.Vector3();
+                probe.acceleration.x = 0;
                 break;
         }
+        
+        // Check if any other keys are still pressed
+        probe.thrusterActive = (probe.acceleration.x !== 0 || probe.acceleration.y !== 0);
     }
 }
 
@@ -351,7 +403,10 @@ function onKeyUp(event) {
 function calculateGravity(probePos, bodyPos, bodyMass) {
     const direction = bodyPos.clone().sub(probePos);
     const distance = direction.length();
-    const force = GRAVITY_CONSTANT * bodyMass / (distance * distance);
+    // Added minimum distance to prevent extreme forces when very close
+    const minDistance = 5;
+    const actualDistance = Math.max(distance, minDistance);
+    const force = GRAVITY_CONSTANT * bodyMass / (actualDistance * actualDistance);
     return direction.normalize().multiplyScalar(force);
 }
 
@@ -413,28 +468,40 @@ function constrainPosition(position) {
     // Calculate distance from origin
     const distance = position.length();
     
-    // If outside boundary, constrain to boundary
-    if (distance > BOUNDARY_RADIUS) {
-        position.normalize().multiplyScalar(BOUNDARY_RADIUS);
+    // If outside boundary or too close to Earth/Moon, constrain position
+    if (distance > BOUNDARY_RADIUS || distance < EARTH_RADIUS * 1.2 || 
+        position.distanceTo(moon.position) < MOON_RADIUS * 1.2) {
         
-        // Add a bounce effect
+        if (distance > BOUNDARY_RADIUS) {
+            // Constrain to boundary
+            position.normalize().multiplyScalar(BOUNDARY_RADIUS * 0.95);
+        } else {
+            // Move away from celestial body
+            const awayFromEarth = position.clone().normalize();
+            position.copy(awayFromEarth.multiplyScalar(EARTH_RADIUS * 1.5));
+        }
+        
+        // Add a bounce effect with energy loss
         if (probe.velocity) {
-            // Reflect velocity vector off the boundary
             const normal = position.clone().normalize();
             probe.velocity.reflect(normal);
-            // Reduce velocity to simulate energy loss
-            probe.velocity.multiplyScalar(0.8);
+            probe.velocity.multiplyScalar(0.6); // Increased energy loss
+            
+            // Add a minimum velocity to prevent getting stuck
+            if (probe.velocity.length() < 0.05) {
+                probe.velocity.normalize().multiplyScalar(0.05);
+            }
         }
 
-        // Visual feedback when hitting boundary
+        // Visual feedback
         window.boundaryIndicator.material.opacity = 0.3;
         setTimeout(() => {
             window.boundaryIndicator.material.opacity = 0.1;
         }, 200);
 
-        return true; // Return true if position was constrained
+        return true;
     }
-    return false; // Return false if position was within bounds
+    return false;
 }
 
 // Add this function to show warning when near boundary
@@ -454,9 +521,8 @@ function animate() {
     requestAnimationFrame(animate);
 
     if (gameActive) {
-        gameTime += 1/60; // Assuming 60 FPS
+        gameTime += 1/60;
         
-        // Check time limit
         if (gameTime >= currentSponsor.objectives.timeLimit) {
             handleTimeout();
         }
@@ -472,86 +538,100 @@ function animate() {
     moon.rotation.y += 0.0005;
     if (moonGlow) moonGlow.position.copy(moon.position);
 
-    // Update probe position and rotation
-    if (probe.velocity) {
-        const newPosition = probe.position.clone().add(probe.velocity);
-        
-        // Check and constrain position before applying
-        if (constrainPosition(newPosition)) {
-            probe.position.copy(newPosition);
-        } else {
-            probe.position.add(probe.velocity);
-        }
+    // Calculate gravitational forces
+    const earthForce = calculateGravity(probe.position, earth.position, 1);
+    const moonForce = calculateGravity(probe.position, moon.position, 0.0123);
+    const totalForce = earthForce.clone().add(moonForce);
 
-        // Add stronger velocity dampening
-        probe.velocity.multiplyScalar(0.99); // Changed from 0.995 for more stability
-
-        // Add minimum velocity threshold to prevent endless drifting
-        if (probe.velocity.length() < 0.001) {
-            probe.velocity.set(0, 0, 0);
-        }
-
-        // Update boundary warning
-        updateBoundaryWarning(probe.position);
+    // Apply forces and update probe position
+    if (!probe.velocity) probe.velocity = new THREE.Vector3();
+    
+    // Apply gravitational forces
+    probe.velocity.add(totalForce);
+    
+    // Apply thruster acceleration if active
+    if (probe.thrusterActive) {
+        probe.velocity.add(probe.acceleration);
+        // Reduced dampening when thrusting
+        probe.velocity.multiplyScalar(0.995);
+    } else {
+        // Light dampening when not thrusting
+        probe.velocity.multiplyScalar(0.998);
+    }
+    
+    // Apply velocity limits with smoother capping
+    const speed = probe.velocity.length();
+    if (speed > MAX_VELOCITY) {
+        probe.velocity.multiplyScalar(0.95); // Smoother speed reduction
+    }
+    
+    const newPosition = probe.position.clone().add(probe.velocity);
+    
+    // Check and constrain position
+    if (constrainPosition(newPosition)) {
+        probe.position.copy(newPosition);
+        probe.velocity.multiplyScalar(0.8); // Softer bounce
+    } else {
+        probe.position.add(probe.velocity);
     }
 
-    // Add subtle rotation to the satellite
+    // Update visual effects
+    updateBoundaryWarning(probe.position);
+    
+    // Update probe rotation and tilt based on movement
     probe.rotation.y += probe.userData.rotationSpeed;
     
-    // Tilt the satellite slightly based on movement
-    if (probe.velocity) {
-        const tiltAmount = 0.1;
+    if (probe.velocity.length() > 0.001) {
+        const tiltAmount = 0.2; // Increased tilt for better visual feedback
         probe.rotation.z = -probe.velocity.x * tiltAmount;
         probe.rotation.x = probe.velocity.y * tiltAmount;
     }
 
-    // Animate Lagrange point rings
-    lagrangePoints.forEach(({ ring }) => {
-        if (ring) {
-            ring.scale.x = 1 + 0.1 * Math.sin(Date.now() * 0.003);
-            ring.scale.y = 1 + 0.1 * Math.sin(Date.now() * 0.003);
-        }
-    });
-
-    // Calculate gravitational forces
-    const earthForce = calculateGravity(probe.position, earth.position, 1);
-    const moonForce = calculateGravity(probe.position, moon.position, 0.0123);
-    
-    // Apply combined force
-    const totalForce = earthForce.add(moonForce);
-    if (probe.velocity) {
-        probe.velocity.add(totalForce);
+    // Update force visualization arrows with improved visibility
+    if (forceLines && forceLines.length === 2) {
+        // Update Earth force arrow (red)
+        forceLines[0].position.copy(probe.position);
+        const earthForceScaled = earthForce.clone().multiplyScalar(FORCE_ARROW_SCALE);
+        const earthArrowLength = Math.max(ARROW_MIN_LENGTH, 
+            Math.min(earthForce.length() * FORCE_ARROW_SCALE, ARROW_MAX_LENGTH));
         
-        // Add velocity dampening to prevent excessive speeds
-        probe.velocity.multiplyScalar(0.995);
-    }
+        forceLines[0].setDirection(earthForceScaled.normalize());
+        forceLines[0].setLength(earthArrowLength);
 
-    // Update force visualization
-    forceLines[0].position.copy(probe.position);
-    forceLines[1].position.copy(probe.position);
-    forceLines[0].setDirection(earthForce.normalize());
-    forceLines[1].setDirection(moonForce.normalize());
+        // Update Moon force arrow (white)
+        forceLines[1].position.copy(probe.position);
+        const moonForceScaled = moonForce.clone().multiplyScalar(FORCE_ARROW_SCALE);
+        const moonArrowLength = Math.max(ARROW_MIN_LENGTH,
+            Math.min(moonForce.length() * FORCE_ARROW_SCALE, ARROW_MAX_LENGTH));
+        
+        forceLines[1].setDirection(moonForceScaled.normalize());
+        forceLines[1].setLength(moonArrowLength);
+    }
 
     // Check Lagrange point proximity
     checkLagrangeProximity();
 
-    // Rotate stars slightly for subtle movement
+    // Rotate stars
     if (stars) stars.rotation.y += 0.0001;
 
     // Update controls
     controls.update();
 
     // Apply sponsor-specific effects
-    if (probe.velocity && currentSponsor.special.effect) {
+    if (currentSponsor.special.effect) {
         switch (currentSponsor.special.effect) {
             case 'stabilityBonus':
-                probe.velocity.multiplyScalar(0.995 / currentSponsor.special.value);
+                if (!probe.thrusterActive) {
+                    probe.velocity.multiplyScalar(1 / currentSponsor.special.value);
+                }
                 break;
             case 'reducedDrift':
                 probe.velocity.multiplyScalar(currentSponsor.special.value);
                 break;
             case 'speedBoost':
-                probe.velocity.multiplyScalar(currentSponsor.special.value);
+                if (probe.thrusterActive) {
+                    probe.velocity.multiplyScalar(currentSponsor.special.value);
+                }
                 break;
         }
     }
@@ -655,57 +735,83 @@ function handleTimeout() {
     }
 }
 
-// Modify createProbe function
+// Improved probe creation
 function createProbe(satelliteConfig) {
     probe = new THREE.Group();
+    probe.velocity = new THREE.Vector3();
+    probe.acceleration = new THREE.Vector3();
+    probe.thrusterActive = false;
 
-    // Main body (central cylinder)
-    const bodyGeometry = new THREE.CylinderGeometry(0.8, 0.8, 2, 12);
+    // Main body (central cylinder with better detail)
+    const bodyGeometry = new THREE.CylinderGeometry(0.8, 0.8, 2, 16);
     const bodyMaterial = new THREE.MeshPhongMaterial({
         color: satelliteConfig.bodyColor,
-        metalness: 0.8,
-        roughness: 0.2,
-        emissive: 0x222222
+        metalness: 0.9,
+        roughness: 0.1,
+        emissive: 0x222222,
+        emissiveIntensity: 0.2,
+        shininess: 90
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     probe.add(body);
 
-    // Solar panels with sponsor-specific configuration
-    const panelGeometry = new THREE.BoxGeometry(4 * satelliteConfig.details.panelSize, 0.1, 1.2);
+    // Enhanced solar panels
+    const panelGeometry = new THREE.BoxGeometry(4 * satelliteConfig.details.panelSize, 0.05, 1.5);
     const panelMaterial = new THREE.MeshPhongMaterial({
         color: satelliteConfig.panelColor,
         metalness: 0.8,
         roughness: 0.2,
-        emissive: 0x112244
+        emissive: 0x112244,
+        emissiveIntensity: 0.3,
+        shininess: 100
     });
 
-    // Left panel
+    // Solar panel details
+    const panelDetailGeometry = new THREE.BoxGeometry(3.8 * satelliteConfig.details.panelSize, 0.06, 1.4);
+    const panelDetailMaterial = new THREE.MeshPhongMaterial({
+        color: 0x1a1a1a,
+        metalness: 0.7,
+        roughness: 0.3,
+        emissive: 0x001133
+    });
+
+    // Left panel with details
     const leftPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+    const leftPanelDetail = new THREE.Mesh(panelDetailGeometry, panelDetailMaterial);
     leftPanel.position.x = -2.4 * satelliteConfig.details.panelSize;
+    leftPanelDetail.position.x = -2.4 * satelliteConfig.details.panelSize;
+    leftPanelDetail.position.z = 0.01;
     probe.add(leftPanel);
+    probe.add(leftPanelDetail);
 
-    // Right panel
+    // Right panel with details
     const rightPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+    const rightPanelDetail = new THREE.Mesh(panelDetailGeometry, panelDetailMaterial);
     rightPanel.position.x = 2.4 * satelliteConfig.details.panelSize;
+    rightPanelDetail.position.x = 2.4 * satelliteConfig.details.panelSize;
+    rightPanelDetail.position.z = 0.01;
     probe.add(rightPanel);
+    probe.add(rightPanelDetail);
 
-    // Add sponsor-specific details
+    // Add enhanced instruments
     if (satelliteConfig.details.instruments) {
         const instrumentsGroup = createInstruments();
         probe.add(instrumentsGroup);
     }
 
-    // Antenna with sponsor-specific size
+    // Enhanced antenna
     const antennaGroup = createAntenna(satelliteConfig.details.antennaSize);
     probe.add(antennaGroup);
 
-    // Add glow effect with sponsor colors
-    const glowGeometry = new THREE.SphereGeometry(3, 16, 16);
+    // Improved glow effect
+    const glowGeometry = new THREE.SphereGeometry(3, 24, 24);
     const glowMaterial = new THREE.MeshPhongMaterial({
         color: satelliteConfig.bodyColor,
         transparent: true,
-        opacity: 0.1,
-        side: THREE.BackSide
+        opacity: 0.15,
+        side: THREE.BackSide,
+        emissive: satelliteConfig.bodyColor,
+        emissiveIntensity: 0.2
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
     probe.add(glow);
@@ -715,13 +821,48 @@ function createProbe(satelliteConfig) {
     probe.scale.set(0.6, 0.6, 0.6);
     scene.add(probe);
 
-    // Add lighting
-    const satelliteLight = new THREE.PointLight(0xffffff, 0.8, 8);
+    // Enhanced lighting
+    const satelliteLight = new THREE.PointLight(0xffffff, 1, 8);
     satelliteLight.position.set(0, 2, 0);
     probe.add(satelliteLight);
 
     // Add rotation animation
     probe.userData.rotationSpeed = 0.001;
+}
+
+// Enhanced antenna creation
+function createAntenna(size) {
+    const group = new THREE.Group();
+    
+    // Main dish with better geometry
+    const dishGeometry = new THREE.SphereGeometry(0.6 * size, 32, 32, 0, Math.PI);
+    const dishMaterial = new THREE.MeshPhongMaterial({
+        color: 0xdddddd,
+        metalness: 0.9,
+        roughness: 0.1,
+        emissive: 0x222222,
+        emissiveIntensity: 0.1
+    });
+    const dish = new THREE.Mesh(dishGeometry, dishMaterial);
+    
+    // Add dish details
+    const dishDetailGeometry = new THREE.RingGeometry(0.2 * size, 0.55 * size, 32);
+    const dishDetailMaterial = new THREE.MeshPhongMaterial({
+        color: 0x333333,
+        metalness: 0.8,
+        roughness: 0.2,
+        side: THREE.DoubleSide
+    });
+    const dishDetail = new THREE.Mesh(dishDetailGeometry, dishDetailMaterial);
+    
+    dish.rotation.x = Math.PI / 2;
+    dish.position.y = 1.0;
+    dishDetail.rotation.x = Math.PI / 2;
+    dishDetail.position.y = 1.01;
+    
+    group.add(dish);
+    group.add(dishDetail);
+    return group;
 }
 
 // Helper function to create instruments
@@ -741,21 +882,5 @@ function createInstruments() {
         group.add(instrument);
     }
 
-    return group;
-}
-
-// Helper function to create antenna
-function createAntenna(size) {
-    const group = new THREE.Group();
-    const dishGeometry = new THREE.SphereGeometry(0.6 * size, 16, 16, 0, Math.PI);
-    const dishMaterial = new THREE.MeshPhongMaterial({
-        color: 0xffffff,
-        metalness: 0.8,
-        roughness: 0.2
-    });
-    const dish = new THREE.Mesh(dishGeometry, dishMaterial);
-    dish.rotation.x = Math.PI / 2;
-    dish.position.y = 1.0;
-    group.add(dish);
     return group;
 } 
