@@ -11,10 +11,14 @@ const SCORE_RATE = 10;
 const BOUNDARY_RADIUS = EARTH_MOON_DISTANCE * 2;
 const MIN_BOUNDARY = -BOUNDARY_RADIUS;
 const MAX_BOUNDARY = BOUNDARY_RADIUS;
-const THRUST_POWER = 0.012; // Increased thrust power
-const DAMPENING = 0.99; // Adjusted dampening
-const MAX_VELOCITY = 0.5; // Increased max velocity
-const MIN_VELOCITY = 0.0;
+const THRUST_POWER = 0.008;  // Increased from 0.003 for better responsiveness
+const DAMPENING = 0.995;     // Increased from 0.98 for smoother movement
+const MAX_VELOCITY = 0.3;    // Increased from 0.2 for better speed
+const ROTATION_SPEED = 0.1;  // Increased from 0.05 for better rotation response
+const TILT_SPEED = 0.15;     // Increased from 0.1 for better tilt response
+const ROLL_SPEED = 0.2;      // Increased from 0.15 for better roll response
+const COLLISION_DAMPENING = 0.7;  // Increased from 0.5 for better collision response
+const MIN_VELOCITY = 0.001;  // Added to prevent micro-movements
 const FORCE_ARROW_SCALE = 50; // Increased scale for better visibility
 const ARROW_MIN_LENGTH = 2; // Minimum arrow length for visibility
 const ARROW_MAX_LENGTH = 15; // Maximum arrow length
@@ -448,7 +452,7 @@ function createForceLines() {
     forceLines = [earthArrow, moonArrow];
 }
 
-// Setup mobile controls
+// Setup mobile controls with 3D movement
 function setupMobileControls() {
     joystick = nipplejs.create({
         zone: document.getElementById('joystick-container'),
@@ -458,19 +462,54 @@ function setupMobileControls() {
         size: 120
     });
 
+    // Add a second joystick for z-axis control
+    const zJoystick = nipplejs.create({
+        zone: document.getElementById('joystick-container'),
+        mode: 'static',
+        position: { left: '80%', top: '50%' },
+        color: 'white',
+        size: 80
+    });
+
     joystick.on('move', (evt, data) => {
         const force = data.force;
         const angle = data.angle.radian;
         
-        probe.velocity = new THREE.Vector3(
-            Math.cos(angle) * force * 0.1,
-            Math.sin(angle) * force * 0.1,
-            0
-        );
+        // Calculate x and y components with reduced sensitivity
+        const x = Math.cos(angle) * force * 0.03;
+        const y = Math.sin(angle) * force * 0.03;
+        
+        // Keep existing z velocity
+        const z = probe.velocity.z;
+        
+        probe.velocity = new THREE.Vector3(x, y, z);
+    });
+
+    zJoystick.on('move', (evt, data) => {
+        const force = data.force;
+        const angle = data.angle.radian;
+        
+        // Calculate z component based on joystick position
+        const z = Math.sin(angle) * force * 0.03;
+        
+        // Keep existing x and y velocity
+        const x = probe.velocity.x;
+        const y = probe.velocity.y;
+        
+        probe.velocity = new THREE.Vector3(x, y, z);
     });
 
     joystick.on('end', () => {
-        probe.velocity = new THREE.Vector3();
+        // Keep z velocity when x/y joystick ends
+        const z = probe.velocity.z;
+        probe.velocity = new THREE.Vector3(0, 0, z);
+    });
+
+    zJoystick.on('end', () => {
+        // Keep x/y velocity when z joystick ends
+        const x = probe.velocity.x;
+        const y = probe.velocity.y;
+        probe.velocity = new THREE.Vector3(x, y, 0);
     });
 }
 
@@ -490,25 +529,33 @@ function onKeyDown(event) {
         
         let thrustChanged = false;
         
-        switch(event.key) {
-            case 'ArrowUp':
+        switch(event.key.toLowerCase()) {
+            case 'arrowup':
             case 'w':
                 probe.acceleration.y = THRUST_POWER;
                 thrustChanged = true;
                 break;
-            case 'ArrowDown':
+            case 'arrowdown':
             case 's':
                 probe.acceleration.y = -THRUST_POWER;
                 thrustChanged = true;
                 break;
-            case 'ArrowLeft':
+            case 'arrowleft':
             case 'a':
                 probe.acceleration.x = -THRUST_POWER;
                 thrustChanged = true;
                 break;
-            case 'ArrowRight':
+            case 'arrowright':
             case 'd':
                 probe.acceleration.x = THRUST_POWER;
+                thrustChanged = true;
+                break;
+            case 'q':
+                probe.acceleration.z = -THRUST_POWER;
+                thrustChanged = true;
+                break;
+            case 'e':
+                probe.acceleration.z = THRUST_POWER;
                 thrustChanged = true;
                 break;
             case ' ': // Emergency brake
@@ -519,12 +566,15 @@ function onKeyDown(event) {
         
         if (thrustChanged) {
             probe.thrusterActive = true;
-            // Less aggressive velocity reduction when changing direction
+            // Smoother velocity reduction when changing direction
             if (probe.acceleration.x !== 0 && Math.sign(probe.velocity.x) !== Math.sign(probe.acceleration.x)) {
-                probe.velocity.x *= 0.95;
+                probe.velocity.x *= 0.8;
             }
             if (probe.acceleration.y !== 0 && Math.sign(probe.velocity.y) !== Math.sign(probe.acceleration.y)) {
-                probe.velocity.y *= 0.95;
+                probe.velocity.y *= 0.8;
+            }
+            if (probe.acceleration.z !== 0 && Math.sign(probe.velocity.z) !== Math.sign(probe.acceleration.z)) {
+                probe.velocity.z *= 0.8;
             }
         }
     }
@@ -536,23 +586,27 @@ function onKeyUp(event) {
             probe.acceleration = new THREE.Vector3();
         }
         
-        switch(event.key) {
-            case 'ArrowUp':
+        switch(event.key.toLowerCase()) {
+            case 'arrowup':
             case 'w':
-            case 'ArrowDown':
+            case 'arrowdown':
             case 's':
                 probe.acceleration.y = 0;
                 break;
-            case 'ArrowLeft':
+            case 'arrowleft':
             case 'a':
-            case 'ArrowRight':
+            case 'arrowright':
             case 'd':
                 probe.acceleration.x = 0;
+                break;
+            case 'q':
+            case 'e':
+                probe.acceleration.z = 0;
                 break;
         }
         
         // Check if any other keys are still pressed
-        probe.thrusterActive = (probe.acceleration.x !== 0 || probe.acceleration.y !== 0);
+        probe.thrusterActive = (probe.acceleration.x !== 0 || probe.acceleration.y !== 0 || probe.acceleration.z !== 0);
     }
 }
 
@@ -736,13 +790,7 @@ function animate() {
     updateBoundaryWarning(probe.position);
     
     // Update probe rotation and tilt based on movement
-    probe.rotation.y += probe.userData.rotationSpeed;
-    
-    if (probe.velocity.length() > 0.001) {
-        const tiltAmount = 0.2;
-        probe.rotation.z = -probe.velocity.x * tiltAmount;
-        probe.rotation.x = probe.velocity.y * tiltAmount;
-    }
+    updateProbeRotation();
 
     // Update force visualization arrows
     if (forceLines && forceLines.length === 2) {
@@ -1058,4 +1106,35 @@ function createInstruments() {
     }
 
     return group;
+}
+
+// Update probe rotation and tilt based on movement
+function updateProbeRotation() {
+    const speed = Math.sqrt(
+        probe.velocity.x * probe.velocity.x +
+        probe.velocity.y * probe.velocity.y +
+        probe.velocity.z * probe.velocity.z
+    );
+
+    if (speed > MIN_VELOCITY) {
+        // Calculate target rotation based on velocity direction
+        const targetRotationX = Math.atan2(probe.velocity.y, probe.velocity.z);
+        const targetRotationY = Math.atan2(probe.velocity.x, probe.velocity.z);
+        const targetRotationZ = Math.atan2(probe.velocity.x, probe.velocity.y);
+
+        // Smoothly interpolate current rotation to target rotation
+        probe.rotation.x += (targetRotationX - probe.rotation.x) * ROTATION_SPEED;
+        probe.rotation.y += (targetRotationY - probe.rotation.y) * ROTATION_SPEED;
+        probe.rotation.z += (targetRotationZ - probe.rotation.z) * ROTATION_SPEED;
+
+        // Apply tilt based on movement direction
+        const tiltX = probe.velocity.z * TILT_SPEED;
+        const tiltY = probe.velocity.x * TILT_SPEED;
+        probe.rotation.x += tiltX;
+        probe.rotation.y += tiltY;
+
+        // Apply roll based on z-axis movement
+        const roll = probe.velocity.z * ROLL_SPEED;
+        probe.rotation.z += roll;
+    }
 } 

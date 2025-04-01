@@ -563,4 +563,24 @@ button:active {
     z-index: 100;
     width: 120px;
     height: 120px;
+}
+
+/* Control hints visibility */
+.desktop-controls {
+    display: block;
+}
+
+.mobile-controls {
+    display: none;
+}
+
+/* Show mobile controls on mobile devices */
+@media (max-width: 768px) {
+    .desktop-controls {
+        display: none;
+    }
+    
+    .mobile-controls {
+        display: block;
+    }
 } 
