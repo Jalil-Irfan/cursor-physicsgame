@@ -3,7 +3,7 @@ const SPONSORS = {
     NASA: {
         name: 'NASA',
         description: 'Focus on precise scientific exploration and Lagrange point studies.',
-        logo: 'https://www.nasa.gov/sites/default/files/thumbnails/image/nasa-logo-web-rgb.png',
+        logo: 'https://www.nasa.gov/wp-content/themes/nasa/assets/images/nasa-logo@2x.png',
         colors: {
             primary: '#0B3D91',
             secondary: '#FC3D21',
@@ -37,7 +37,7 @@ const SPONSORS = {
     ESA: {
         name: 'European Space Agency',
         description: 'Efficient exploration and sustainable space operations.',
-        logo: 'https://www.esa.int/assets/img/esa-logo-dark.svg',
+        logo: 'https://www.esa.int/extension/pillars/design/pillars/images/ESA_Logo.svg',
         colors: {
             primary: '#003B6F',
             secondary: '#FFD700',
