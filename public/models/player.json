@@ -1,0 +1,29 @@
+{
+    "geometry": {
+        "type": "capsule",
+        "radius": 0.5,
+        "height": 2,
+        "radialSegments": 8,
+        "heightSegments": 1,
+        "capsuleSegments": 2,
+        "openEnded": false
+    },
+    "material": {
+        "color": "#4a90e2",
+        "emissive": "#2c3e50",
+        "emissiveIntensity": 0.2,
+        "shininess": 30
+    },
+    "physics": {
+        "mass": 1,
+        "friction": 0.3,
+        "restitution": 0.3,
+        "linearDamping": 0.1,
+        "angularDamping": 0.1
+    },
+    "movement": {
+        "speed": 5,
+        "jumpForce": 10,
+        "maxVelocity": 10
+    }
+} 
