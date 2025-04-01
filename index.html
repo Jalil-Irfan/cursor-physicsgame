@@ -10,8 +10,8 @@
     <script src="https://cdn.jsdelivr.net/npm/nipplejs@0.10.1/dist/nipplejs.min.js"></script>
 </head>
 <body>
-    <div id="landing-screen" class="screen">
-        <div class="landing-content">
+    <div id="landing-screen" class="overlay">
+        <div class="overlay-content">
             <h1>Lagrange Drift</h1>
             <div class="game-description">
                 <p>Balance your satellite at any Lagrange point for 30 seconds to win!</p>
@@ -58,7 +58,12 @@
             </div>
             <div id="mission-objectives"></div>
         </div>
-        <div id="joystick-container"></div>
+        <div id="joystick-container-left" class="left">
+            <div id="joystick-left"></div>
+        </div>
+        <div id="joystick-container-right" class="right">
+            <div id="joystick-right"></div>
+        </div>
         <div id="win-screen" class="hidden">
             <div class="win-content">
                 <h2>Congratulations!</h2>

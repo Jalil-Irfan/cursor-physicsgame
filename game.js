@@ -454,24 +454,24 @@ function createForceLines() {
 
 // Setup mobile controls with 3D movement
 function setupMobileControls() {
-    joystick = nipplejs.create({
-        zone: document.getElementById('joystick-container'),
+    // Mobile joystick setup
+    const leftJoystick = nipplejs.create({
+        zone: document.getElementById('joystick-left'),
         mode: 'static',
         position: { left: '50%', top: '50%' },
-        color: 'white',
+        color: 'rgba(0, 255, 255, 0.5)',
         size: 120
     });
 
-    // Add a second joystick for z-axis control
-    const zJoystick = nipplejs.create({
-        zone: document.getElementById('joystick-container'),
+    const rightJoystick = nipplejs.create({
+        zone: document.getElementById('joystick-right'),
         mode: 'static',
-        position: { left: '80%', top: '50%' },
-        color: 'white',
-        size: 80
+        position: { left: '50%', top: '50%' },
+        color: 'rgba(0, 255, 255, 0.5)',
+        size: 120
     });
 
-    joystick.on('move', (evt, data) => {
+    leftJoystick.on('move', (evt, data) => {
         const force = data.force;
         const angle = data.angle.radian;
         
@@ -485,7 +485,7 @@ function setupMobileControls() {
         probe.velocity = new THREE.Vector3(x, y, z);
     });
 
-    zJoystick.on('move', (evt, data) => {
+    rightJoystick.on('move', (evt, data) => {
         const force = data.force;
         const angle = data.angle.radian;
         
@@ -499,13 +499,13 @@ function setupMobileControls() {
         probe.velocity = new THREE.Vector3(x, y, z);
     });
 
-    joystick.on('end', () => {
+    leftJoystick.on('end', () => {
         // Keep z velocity when x/y joystick ends
         const z = probe.velocity.z;
         probe.velocity = new THREE.Vector3(0, 0, z);
     });
 
-    zJoystick.on('end', () => {
+    rightJoystick.on('end', () => {
         // Keep x/y velocity when z joystick ends
         const x = probe.velocity.x;
         const y = probe.velocity.y;
