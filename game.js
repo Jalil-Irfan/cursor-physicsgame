@@ -389,6 +389,28 @@ function createLagrangePoints() {
         const ring = new THREE.Mesh(ringGeometry, ringMaterial);
         ring.rotation.x = Math.PI / 2;
         point.add(ring);
+
+        // Create label
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 64;
+        canvas.height = 32;
+        context.fillStyle = '#ffffff';
+        context.font = 'bold 24px Arial';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(pos.name, canvas.width/2, canvas.height/2);
+        
+        const labelTexture = new THREE.CanvasTexture(canvas);
+        const labelGeometry = new THREE.PlaneGeometry(1, 0.5);
+        const labelMaterial = new THREE.MeshBasicMaterial({
+            map: labelTexture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+        const label = new THREE.Mesh(labelGeometry, labelMaterial);
+        label.position.y = 1.2; // Position above the point
+        point.add(label);
         
         scene.add(point);
         lagrangePoints.push({ point, name: pos.name, ring });
