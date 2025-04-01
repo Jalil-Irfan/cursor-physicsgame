@@ -58,7 +58,7 @@ const SoundSystem = {
     isPlaying: false,
     audioContext: null,
     gainNode: null,
-    failedTracks: new Set(), // Track failed loading attempts
+    failedTracks: new Set(),
     playlist: [
         {
             name: "Space Journey",
@@ -78,56 +78,66 @@ const SoundSystem = {
         const player = document.createElement('div');
         player.className = 'music-player';
         player.innerHTML = `
-            <button class="playlist-toggle">🎵</button>
-            <div class="track-info">${this.playlist[0].name}</div>
-            <button class="prev-track">⏮</button>
-            <button class="play-pause">▶</button>
-            <button class="next-track">⏭</button>
-            <div class="volume-control">
-                <button class="mute-toggle">🔊</button>
-                <input type="range" class="volume-slider" min="0" max="100" value="25">
-            </div>
-            <div class="playlist-menu">
-                ${this.playlist.map((track, index) => `
-                    <div class="playlist-item ${index === 0 ? 'active' : ''}" data-index="${index}">
-                        ${track.name}
+            <button class="toggle-expand" title="Toggle Music Player">
+                <span>🎵</span>
+            </button>
+            <div class="player-controls">
+                <div class="controls-row">
+                    <button class="play-pause" title="Play/Pause">
+                        <span>▶</span>
+                    </button>
+                    <button class="prev-track" title="Previous">
+                        <span>⏮</span>
+                    </button>
+                    <button class="next-track" title="Next">
+                        <span>⏭</span>
+                    </button>
+                    <button class="mute-toggle" title="Mute">
+                        <span>🔊</span>
+                    </button>
+                </div>
+                <div class="controls-row">
+                    <div class="volume-control">
+                        <input type="range" class="volume-slider" min="0" max="100" value="25" title="Volume">
                     </div>
-                `).join('')}
+                </div>
             </div>
         `;
         document.body.appendChild(player);
 
-        // Add event listeners with proper binding
+        // Add event listeners
+        const toggleBtn = player.querySelector('.toggle-expand');
         const playPauseBtn = player.querySelector('.play-pause');
         const prevBtn = player.querySelector('.prev-track');
         const nextBtn = player.querySelector('.next-track');
         const muteBtn = player.querySelector('.mute-toggle');
         const volumeSlider = player.querySelector('.volume-slider');
-        const playlistToggle = player.querySelector('.playlist-toggle');
-        const playlistMenu = player.querySelector('.playlist-menu');
+
+        // Toggle expand/collapse
+        toggleBtn.addEventListener('click', () => {
+            player.classList.toggle('expanded');
+        });
+
+        // Automatically collapse when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!player.contains(e.target)) {
+                player.classList.remove('expanded');
+            }
+        });
 
         playPauseBtn.addEventListener('click', () => this.togglePlay());
         prevBtn.addEventListener('click', () => this.prevTrack());
         nextBtn.addEventListener('click', () => this.nextTrack());
         muteBtn.addEventListener('click', () => this.toggleMute());
         volumeSlider.addEventListener('input', (e) => this.setVolume(e.target.value));
-        playlistToggle.addEventListener('click', () => this.togglePlaylist());
 
-        // Close playlist when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!player.contains(e.target)) {
-                playlistMenu.classList.remove('show');
+        // Update methods
+        this.updatePlayPauseButton = () => {
+            const button = player.querySelector('.play-pause');
+            if (button) {
+                button.innerHTML = `<span>${this.isPlaying ? '⏸' : '▶'}</span>`;
             }
-        });
-
-        // Playlist item click handlers
-        player.querySelectorAll('.playlist-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const index = parseInt(item.dataset.index);
-                this.playTrack(index);
-                playlistMenu.classList.remove('show');
-            });
-        });
+        };
     },
 
     init() {
@@ -227,7 +237,6 @@ const SoundSystem = {
     playTrack(index, isRetry = false) {
         if (index >= 0 && index < this.playlist.length) {
             try {
-                // If this track previously failed and this is not a retry attempt, skip it
                 if (this.failedTracks.has(index) && !isRetry) {
                     console.debug(`[Sound] Skipping previously failed track ${this.playlist[index].name}`);
                     this.nextTrack();
@@ -237,60 +246,60 @@ const SoundSystem = {
                 this.currentTrackIndex = index;
                 const track = this.playlist[index];
                 
-                // Create a new Audio instance for each track
-                const newAudio = new Audio();
-                
-                // Set up error handling before setting source
-                newAudio.onerror = (e) => {
-                    console.error(`[Sound] Error loading track ${track.name}:`, e);
-                    console.debug(`[Sound] Failed URL: ${track.url}`);
-                    this.failedTracks.add(index);
-                    
-                    // Only try next track if this wasn't a retry attempt
-                    if (!isRetry) {
-                        this.nextTrack();
-                    }
-                };
-                
-                // Set up loading handling
-                newAudio.oncanplaythrough = () => {
-                    console.debug(`[Sound] Track ${track.name} loaded successfully`);
-                    // Remove from failed tracks if it was there
-                    this.failedTracks.delete(index);
-                    
-                    if (this.currentTrackIndex === index && !this.isMuted) {
-                        newAudio.play().catch(error => {
-                            console.error('[Sound] Track playback failed:', error);
-                            if (!isRetry) {
-                                this.nextTrack();
-                            }
-                        });
-                        this.isPlaying = true;
-                    }
-                    this.updatePlayPauseButton();
-                };
-
-                // Clean up old audio
+                // Clean up old audio first
                 if (this.backgroundMusic) {
                     this.backgroundMusic.pause();
                     this.backgroundMusic.src = '';
                     this.backgroundMusic = null;
                 }
 
-                // Configure new audio
+                console.debug(`[Sound] Attempting to load track: ${track.name}`);
+
+                // Create and configure new audio
+                const newAudio = new Audio();
+                
+                // Configure audio
                 newAudio.loop = true;
                 newAudio.volume = 0.25;
                 newAudio.preload = 'auto';
-                newAudio.src = track.url;
                 
-                // Store new audio
+                // Set up error handling
+                newAudio.onerror = () => {
+                    console.error(`[Sound] Error loading track: ${track.name}`);
+                    this.failedTracks.add(index);
+                    if (!isRetry) {
+                        this.nextTrack();
+                    }
+                };
+                
+                // Set up success handling
+                newAudio.oncanplaythrough = () => {
+                    console.debug(`[Sound] Track loaded successfully: ${track.name}`);
+                    this.failedTracks.delete(index);
+                    
+                    if (this.currentTrackIndex === index && !this.isMuted) {
+                        newAudio.play()
+                            .then(() => {
+                                console.debug(`[Sound] Playing track: ${track.name}`);
+                                this.isPlaying = true;
+                                this.updatePlayPauseButton();
+                            })
+                            .catch(error => {
+                                console.error(`[Sound] Playback failed: ${error.message}`);
+                                if (!isRetry) {
+                                    this.nextTrack();
+                                }
+                            });
+                    }
+                };
+
+                // Store new audio and set source
                 this.backgroundMusic = newAudio;
-                
-                this.updateTrackInfo();
-                this.updatePlaylistActive();
+                newAudio.src = track.url;
                 console.debug(`[Sound] Loading track: ${track.name} from ${track.url}`);
+
             } catch (error) {
-                console.error('[Sound] Track change failed:', error);
+                console.error(`[Sound] Track change failed: ${error.message}`);
                 this.failedTracks.add(index);
                 if (!isRetry) {
                     this.nextTrack();
@@ -441,13 +450,6 @@ const SoundSystem = {
     togglePlaylist() {
         const playlistMenu = document.querySelector('.playlist-menu');
         playlistMenu.classList.toggle('show');
-    },
-
-    updateTrackInfo() {
-        const trackInfo = document.querySelector('.track-info');
-        if (trackInfo) {
-            trackInfo.textContent = this.playlist[this.currentTrackIndex].name;
-        }
     },
 
     updatePlaylistActive() {
