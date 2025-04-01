@@ -1573,4 +1573,40 @@ function startGame() {
 
     // Start background music
     SoundSystem.startBackgroundMusic();
-} 
+}
+
+// Add this function to handle game restart
+function restartGame() {
+    // Reset game state
+    gameTime = 0;
+    score = 0;
+    balanceTime = 0;
+    gameActive = true;
+    currentLagrangePoint = null;
+
+    // Hide win screen
+    const winScreen = document.getElementById('win-screen');
+    winScreen.classList.add('hidden');
+
+    // Reset probe position and velocity
+    if (probe) {
+        probe.position.set(0, 0, 5);
+        probe.velocity.set(0, 0, 0);
+        probe.acceleration.set(0, 0, 0);
+        probe.rotation.set(0, 0, 0);
+    }
+
+    // Update UI
+    updateUI();
+
+    // Restart background music
+    SoundSystem.startBackgroundMusic();
+}
+
+// Add event listener for restart button
+document.addEventListener('DOMContentLoaded', () => {
+    const restartButton = document.getElementById('restart-game');
+    if (restartButton) {
+        restartButton.addEventListener('click', restartGame);
+    }
+}); 
