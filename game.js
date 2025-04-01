@@ -19,6 +19,12 @@ const FORCE_ARROW_SCALE = 50; // Increased scale for better visibility
 const ARROW_MIN_LENGTH = 2; // Minimum arrow length for visibility
 const ARROW_MAX_LENGTH = 15; // Maximum arrow length
 
+// Portal constants
+const PORTAL_RADIUS = 3;
+const PORTAL_POSITION = new THREE.Vector3(EARTH_MOON_DISTANCE * 0.5, EARTH_MOON_DISTANCE * 0.3, 0);
+const PORTAL_COLOR = 0x00ffff;
+const PORTAL_GAME_URL = window.location.href;
+
 // Scene setup
 let scene, camera, renderer, controls;
 let earth, moon, probe;
@@ -32,10 +38,133 @@ let score = 0;
 let balanceTime = 0;
 let gameActive = false;
 let currentLagrangePoint = null;
+let portal, portalRing, portalLabel;
 
 // Add sponsor system variables
 let sponsorSystem;
 let currentSponsor;
+
+// Check for portal entry
+function checkPortalEntry() {
+    if (!probe || !portal) return;
+    
+    const distanceToPortal = probe.position.distanceTo(portal.position);
+    if (distanceToPortal < PORTAL_RADIUS) {
+        // Prepare portal parameters
+        const params = new URLSearchParams();
+        params.append('username', document.getElementById('player-name').value || 'unknown');
+        params.append('color', currentSponsor ? currentSponsor.colors.primary.replace('#', '') : 'ffffff');
+        params.append('speed', probe.velocity.length().toFixed(2));
+        params.append('ref', PORTAL_GAME_URL);
+        
+        // Add additional parameters
+        params.append('speed_x', probe.velocity.x.toFixed(2));
+        params.append('speed_y', probe.velocity.y.toFixed(2));
+        params.append('speed_z', probe.velocity.z.toFixed(2));
+        params.append('rotation_x', probe.rotation.x.toFixed(2));
+        params.append('rotation_y', probe.rotation.y.toFixed(2));
+        params.append('rotation_z', probe.rotation.z.toFixed(2));
+        
+        // Redirect to portal
+        window.location.href = `http://portal.pieter.com/?${params.toString()}`;
+    }
+}
+
+// Create portal
+function createPortal() {
+    const portalGroup = new THREE.Group();
+    
+    // Main portal ring
+    const ringGeometry = new THREE.TorusGeometry(PORTAL_RADIUS, 0.3, 16, 100);
+    const ringMaterial = new THREE.MeshPhongMaterial({
+        color: PORTAL_COLOR,
+        emissive: PORTAL_COLOR,
+        emissiveIntensity: 0.5,
+        transparent: true,
+        opacity: 0.8
+    });
+    portalRing = new THREE.Mesh(ringGeometry, ringMaterial);
+    
+    // Portal effect (inner glow)
+    const portalGeometry = new THREE.CircleGeometry(PORTAL_RADIUS - 0.1, 32);
+    const portalMaterial = new THREE.MeshBasicMaterial({
+        color: PORTAL_COLOR,
+        transparent: true,
+        opacity: 0.3,
+        side: THREE.DoubleSide
+    });
+    portal = new THREE.Mesh(portalGeometry, portalMaterial);
+    
+    // Create portal label
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = 256;
+    canvas.height = 64;
+    context.fillStyle = '#ffffff';
+    context.font = 'bold 32px Arial';
+    context.textAlign = 'center';
+    context.fillText('Vibeverse Portal', canvas.width/2, canvas.height/2);
+    
+    const labelTexture = new THREE.CanvasTexture(canvas);
+    const labelGeometry = new THREE.PlaneGeometry(4, 1);
+    const labelMaterial = new THREE.MeshBasicMaterial({
+        map: labelTexture,
+        transparent: true,
+        side: THREE.DoubleSide
+    });
+    portalLabel = new THREE.Mesh(labelGeometry, labelMaterial);
+    portalLabel.position.y = PORTAL_RADIUS + 1;
+    
+    // Add everything to the portal group
+    portalGroup.add(portalRing);
+    portalGroup.add(portal);
+    portalGroup.add(portalLabel);
+    
+    // Position the portal
+    portalGroup.position.copy(PORTAL_POSITION);
+    
+    // Add to scene
+    scene.add(portalGroup);
+    
+    // Add portal animation
+    portalGroup.userData.rotationSpeed = 0.001;
+    portalGroup.userData.pulseSpeed = 0.02;
+    portalGroup.userData.pulseTime = 0;
+}
+
+// Handle incoming portal players
+function handlePortalEntry() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('portal') === 'true') {
+        // Skip intro screens
+        document.getElementById('landing-screen').style.display = 'none';
+        document.getElementById('sponsor-screen').style.display = 'none';
+        document.getElementById('game-screen').style.display = 'block';
+        
+        // Initialize game
+        initGame();
+        
+        // Set probe properties from portal params
+        if (probe) {
+            // Position probe near portal
+            probe.position.copy(PORTAL_POSITION).add(new THREE.Vector3(PORTAL_RADIUS * 2, 0, 0));
+            
+            // Set velocity
+            const speed_x = parseFloat(urlParams.get('speed_x')) || 0;
+            const speed_y = parseFloat(urlParams.get('speed_y')) || 0;
+            const speed_z = parseFloat(urlParams.get('speed_z')) || 0;
+            probe.velocity.set(speed_x, speed_y, speed_z);
+            
+            // Set rotation
+            const rotation_x = parseFloat(urlParams.get('rotation_x')) || 0;
+            const rotation_y = parseFloat(urlParams.get('rotation_y')) || 0;
+            const rotation_z = parseFloat(urlParams.get('rotation_z')) || 0;
+            probe.rotation.set(rotation_x, rotation_y, rotation_z);
+        }
+        
+        gameActive = true;
+    }
+}
 
 // Initialize Three.js scene
 function initGame() {
@@ -90,6 +219,9 @@ function initGame() {
     // Create force visualization after probe exists
     createForceLines();
 
+    // Create portal
+    createPortal();
+
     // Setup mobile controls
     if (window.innerWidth <= 768) {
         setupMobileControls();
@@ -102,6 +234,9 @@ function initGame() {
 
     // Start animation loop
     animate();
+
+    // Check for portal entry
+    handlePortalEntry();
 
     initGameState();
 }
@@ -562,7 +697,7 @@ function animate() {
     // Apply velocity limits with smoother capping
     const speed = probe.velocity.length();
     if (speed > MAX_VELOCITY) {
-        probe.velocity.multiplyScalar(0.95); // Smoother speed reduction
+        probe.velocity.multiplyScalar(0.95);
     }
     
     const newPosition = probe.position.clone().add(probe.velocity);
@@ -570,7 +705,7 @@ function animate() {
     // Check and constrain position
     if (constrainPosition(newPosition)) {
         probe.position.copy(newPosition);
-        probe.velocity.multiplyScalar(0.8); // Softer bounce
+        probe.velocity.multiplyScalar(0.8);
     } else {
         probe.position.add(probe.velocity);
     }
@@ -582,14 +717,13 @@ function animate() {
     probe.rotation.y += probe.userData.rotationSpeed;
     
     if (probe.velocity.length() > 0.001) {
-        const tiltAmount = 0.2; // Increased tilt for better visual feedback
+        const tiltAmount = 0.2;
         probe.rotation.z = -probe.velocity.x * tiltAmount;
         probe.rotation.x = probe.velocity.y * tiltAmount;
     }
 
-    // Update force visualization arrows with improved visibility
+    // Update force visualization arrows
     if (forceLines && forceLines.length === 2) {
-        // Update Earth force arrow (red)
         forceLines[0].position.copy(probe.position);
         const earthForceScaled = earthForce.clone().multiplyScalar(FORCE_ARROW_SCALE);
         const earthArrowLength = Math.max(ARROW_MIN_LENGTH, 
@@ -598,7 +732,6 @@ function animate() {
         forceLines[0].setDirection(earthForceScaled.normalize());
         forceLines[0].setLength(earthArrowLength);
 
-        // Update Moon force arrow (white)
         forceLines[1].position.copy(probe.position);
         const moonForceScaled = moonForce.clone().multiplyScalar(FORCE_ARROW_SCALE);
         const moonArrowLength = Math.max(ARROW_MIN_LENGTH,
@@ -607,6 +740,26 @@ function animate() {
         forceLines[1].setDirection(moonForceScaled.normalize());
         forceLines[1].setLength(moonArrowLength);
     }
+
+    // Animate portal
+    if (portal && portalRing) {
+        const portalGroup = portal.parent;
+        portalGroup.rotation.y += portalGroup.userData.rotationSpeed;
+        
+        // Pulse effect
+        portalGroup.userData.pulseTime += portalGroup.userData.pulseSpeed;
+        const pulse = Math.sin(portalGroup.userData.pulseTime) * 0.2 + 0.8;
+        portal.material.opacity = pulse * 0.3;
+        portalRing.material.emissiveIntensity = pulse * 0.5;
+        
+        // Make label always face camera
+        if (portalLabel) {
+            portalLabel.quaternion.copy(camera.quaternion);
+        }
+    }
+
+    // Check for portal entry
+    checkPortalEntry();
 
     // Check Lagrange point proximity
     checkLagrangeProximity();
