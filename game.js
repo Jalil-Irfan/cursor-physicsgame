@@ -26,8 +26,30 @@ let balanceTime = 0;
 let gameActive = false;
 let currentLagrangePoint = null;
 
+// Add sponsor system variables
+let sponsorSystem;
+let currentSponsor;
+
 // Initialize Three.js scene
 function initGame() {
+    // Initialize sponsor system
+    sponsorSystem = new SponsorSystem();
+    currentSponsor = sponsorSystem.selectSponsor(window.selectedSponsor);
+
+    // Update UI with sponsor info
+    const sponsorLogo = document.getElementById('sponsor-logo');
+    sponsorLogo.innerHTML = `<img src="${currentSponsor.logo}" alt="${currentSponsor.name} logo" height="30">`;
+
+    const missionObjectives = document.getElementById('mission-objectives');
+    missionObjectives.innerHTML = `
+        <div class="mission-box">
+            <h3>${currentSponsor.name} Mission Objectives</h3>
+            <p>Primary: ${currentSponsor.objectives.main}</p>
+            <p>Bonus: ${currentSponsor.objectives.bonus}</p>
+            <p>Time Limit: ${currentSponsor.objectives.timeLimit}s</p>
+        </div>
+    `;
+
     // Scene setup
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -55,7 +77,10 @@ function initGame() {
     // Create Lagrange points
     createLagrangePoints();
     
-    // Create force visualization
+    // Create probe first
+    createProbe(currentSponsor.satellite);
+    
+    // Create force visualization after probe exists
     createForceLines();
 
     // Setup mobile controls
@@ -159,91 +184,6 @@ function createCelestialBodies() {
     moonGlow = new THREE.Mesh(moonGlowGeometry, moonGlowMaterial);
     moonGlow.position.copy(moon.position);
     scene.add(moonGlow);
-
-    // Create satellite (probe)
-    probe = new THREE.Group();
-
-    // Main body (central cylinder)
-    const bodyGeometry = new THREE.CylinderGeometry(0.8, 0.8, 2, 12);
-    const bodyMaterial = new THREE.MeshPhongMaterial({
-        color: 0x888888,
-        metalness: 0.8,
-        roughness: 0.2,
-        emissive: 0x222222
-    });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    probe.add(body);
-
-    // Antenna dish
-    const dishGeometry = new THREE.SphereGeometry(0.6, 16, 16, 0, Math.PI);
-    const dishMaterial = new THREE.MeshPhongMaterial({
-        color: 0xffffff,
-        metalness: 0.8,
-        roughness: 0.2
-    });
-    const dish = new THREE.Mesh(dishGeometry, dishMaterial);
-    dish.rotation.x = Math.PI / 2;
-    dish.position.y = 1.0;
-    probe.add(dish);
-
-    // Solar panels
-    const panelGeometry = new THREE.BoxGeometry(4, 0.1, 1.2);
-    const panelMaterial = new THREE.MeshPhongMaterial({
-        color: 0x2244aa,
-        metalness: 0.8,
-        roughness: 0.2,
-        emissive: 0x112244
-    });
-
-    // Left panel
-    const leftPanel = new THREE.Mesh(panelGeometry, panelMaterial);
-    leftPanel.position.x = -2.4;
-    probe.add(leftPanel);
-
-    // Right panel
-    const rightPanel = new THREE.Mesh(panelGeometry, panelMaterial);
-    rightPanel.position.x = 2.4;
-    probe.add(rightPanel);
-
-    // Small details
-    const detailGeometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-    const detailMaterial = new THREE.MeshPhongMaterial({
-        color: 0x444444,
-        metalness: 0.8,
-        roughness: 0.2
-    });
-
-    // Add some small boxes as details
-    for (let i = 0; i < 3; i++) {
-        const detail = new THREE.Mesh(detailGeometry, detailMaterial);
-        detail.position.y = -0.6 + (i * 0.4);
-        detail.position.z = 0.4;
-        probe.add(detail);
-    }
-
-    // Add glow effect
-    const glowGeometry = new THREE.SphereGeometry(3, 16, 16);
-    const glowMaterial = new THREE.MeshPhongMaterial({
-        color: 0x3366ff,
-        transparent: true,
-        opacity: 0.1,
-        side: THREE.BackSide
-    });
-    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    probe.add(glow);
-
-    // Position the entire satellite
-    probe.position.set(0, 0, 5);
-    probe.scale.set(0.6, 0.6, 0.6);
-    scene.add(probe);
-
-    // Add a point light to illuminate the satellite
-    const satelliteLight = new THREE.PointLight(0xffffff, 0.8, 8);
-    satelliteLight.position.set(0, 2, 0);
-    probe.add(satelliteLight);
-
-    // Add subtle rotation animation to the satellite
-    probe.userData.rotationSpeed = 0.001;
 
     // Enhanced lighting
     const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
@@ -514,6 +454,12 @@ function animate() {
 
     if (gameActive) {
         gameTime += 1/60; // Assuming 60 FPS
+        
+        // Check time limit
+        if (gameTime >= currentSponsor.objectives.timeLimit) {
+            handleTimeout();
+        }
+        
         updateUI();
     }
 
@@ -586,6 +532,21 @@ function animate() {
     // Update controls
     controls.update();
 
+    // Apply sponsor-specific effects
+    if (probe.velocity && currentSponsor.special.effect) {
+        switch (currentSponsor.special.effect) {
+            case 'stabilityBonus':
+                probe.velocity.multiplyScalar(0.995 / currentSponsor.special.value);
+                break;
+            case 'reducedDrift':
+                probe.velocity.multiplyScalar(currentSponsor.special.value);
+                break;
+            case 'speedBoost':
+                probe.velocity.multiplyScalar(currentSponsor.special.value);
+                break;
+        }
+    }
+
     // Render scene
     renderer.render(scene, camera);
 }
@@ -605,6 +566,7 @@ function updateUI() {
     const timerElement = document.getElementById('timer');
     const scoreElement = document.getElementById('score');
     const balanceStatus = document.getElementById('balance-status');
+    const satisfactionElement = document.getElementById('sponsor-satisfaction');
     
     timerElement.textContent = `Time: ${Math.floor(gameTime)}s`;
     scoreElement.textContent = `Score: ${Math.floor(score)}`;
@@ -612,9 +574,16 @@ function updateUI() {
     if (currentLagrangePoint && balanceTime > 0) {
         balanceStatus.textContent = `Balanced at ${currentLagrangePoint} for ${Math.floor(balanceTime)}s`;
         balanceStatus.style.color = '#00ff00';
+        
+        // Update sponsor satisfaction
+        sponsorSystem.updateSatisfaction({ objective: true, bonus: balanceTime > 10 });
     } else {
         balanceStatus.textContent = '';
+        sponsorSystem.updateSatisfaction({ objective: false, bonus: false });
     }
+    
+    satisfactionElement.textContent = `Sponsor Satisfaction: ${Math.floor(sponsorSystem.satisfaction)}%`;
+    satisfactionElement.style.color = sponsorSystem.satisfaction > 50 ? '#00ff00' : '#ff0000';
 }
 
 // Add this function to handle winning
@@ -623,11 +592,161 @@ function handleWin() {
     const winScreen = document.getElementById('win-screen');
     const winMessage = document.getElementById('win-message');
     winScreen.classList.remove('hidden');
-    winMessage.textContent = `You balanced at ${currentLagrangePoint} for ${WINNING_TIME} seconds!\nFinal Score: ${Math.floor(score)}`;
     
-    // Add event listener for restart button
-    document.getElementById('restart-game').addEventListener('click', () => {
-        winScreen.classList.add('hidden');
-        initGameState();
+    const finalScore = Math.floor(score);
+    const satisfaction = Math.floor(sponsorSystem.satisfaction);
+    
+    winMessage.innerHTML = `
+        Outstanding Achievement!<br>
+        You've successfully completed ${currentSponsor.name}'s primary objective!<br>
+        Final Score: ${finalScore}<br>
+        Sponsor Satisfaction: ${satisfaction}%<br>
+        Time: ${Math.floor(gameTime)}s
+    `;
+    
+    // Add achievement for winning
+    sponsorSystem.checkAchievements({
+        stabilityTime: balanceTime,
+        visitedPoints: new Set([currentLagrangePoint]),
+        maxPrecision: probe.position.distanceTo(lagrangePoints[0].point.position)
     });
+}
+
+// Add timeout handling
+function handleTimeout() {
+    gameActive = false;
+    const winScreen = document.getElementById('win-screen');
+    const winMessage = document.getElementById('win-message');
+    winScreen.classList.remove('hidden');
+    
+    const finalScore = Math.floor(score);
+    const satisfaction = Math.floor(sponsorSystem.satisfaction);
+    
+    if (satisfaction >= 80) {
+        winMessage.innerHTML = `
+            Mission Accomplished!<br>
+            ${currentSponsor.name} is extremely pleased with your performance.<br>
+            Final Score: ${finalScore}<br>
+            Satisfaction: ${satisfaction}%
+        `;
+    } else if (satisfaction >= 50) {
+        winMessage.innerHTML = `
+            Mission Completed.<br>
+            ${currentSponsor.name} acknowledges your effort.<br>
+            Final Score: ${finalScore}<br>
+            Satisfaction: ${satisfaction}%
+        `;
+    } else {
+        winMessage.innerHTML = `
+            Mission Failed.<br>
+            ${currentSponsor.name} is disappointed with your performance.<br>
+            Final Score: ${finalScore}<br>
+            Satisfaction: ${satisfaction}%
+        `;
+    }
+}
+
+// Modify createProbe function
+function createProbe(satelliteConfig) {
+    probe = new THREE.Group();
+
+    // Main body (central cylinder)
+    const bodyGeometry = new THREE.CylinderGeometry(0.8, 0.8, 2, 12);
+    const bodyMaterial = new THREE.MeshPhongMaterial({
+        color: satelliteConfig.bodyColor,
+        metalness: 0.8,
+        roughness: 0.2,
+        emissive: 0x222222
+    });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    probe.add(body);
+
+    // Solar panels with sponsor-specific configuration
+    const panelGeometry = new THREE.BoxGeometry(4 * satelliteConfig.details.panelSize, 0.1, 1.2);
+    const panelMaterial = new THREE.MeshPhongMaterial({
+        color: satelliteConfig.panelColor,
+        metalness: 0.8,
+        roughness: 0.2,
+        emissive: 0x112244
+    });
+
+    // Left panel
+    const leftPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+    leftPanel.position.x = -2.4 * satelliteConfig.details.panelSize;
+    probe.add(leftPanel);
+
+    // Right panel
+    const rightPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+    rightPanel.position.x = 2.4 * satelliteConfig.details.panelSize;
+    probe.add(rightPanel);
+
+    // Add sponsor-specific details
+    if (satelliteConfig.details.instruments) {
+        const instrumentsGroup = createInstruments();
+        probe.add(instrumentsGroup);
+    }
+
+    // Antenna with sponsor-specific size
+    const antennaGroup = createAntenna(satelliteConfig.details.antennaSize);
+    probe.add(antennaGroup);
+
+    // Add glow effect with sponsor colors
+    const glowGeometry = new THREE.SphereGeometry(3, 16, 16);
+    const glowMaterial = new THREE.MeshPhongMaterial({
+        color: satelliteConfig.bodyColor,
+        transparent: true,
+        opacity: 0.1,
+        side: THREE.BackSide
+    });
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+    probe.add(glow);
+
+    // Position and scale
+    probe.position.set(0, 0, 5);
+    probe.scale.set(0.6, 0.6, 0.6);
+    scene.add(probe);
+
+    // Add lighting
+    const satelliteLight = new THREE.PointLight(0xffffff, 0.8, 8);
+    satelliteLight.position.set(0, 2, 0);
+    probe.add(satelliteLight);
+
+    // Add rotation animation
+    probe.userData.rotationSpeed = 0.001;
+}
+
+// Helper function to create instruments
+function createInstruments() {
+    const group = new THREE.Group();
+    const instrumentGeometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+    const instrumentMaterial = new THREE.MeshPhongMaterial({
+        color: 0x444444,
+        metalness: 0.8,
+        roughness: 0.2
+    });
+
+    for (let i = 0; i < 3; i++) {
+        const instrument = new THREE.Mesh(instrumentGeometry, instrumentMaterial);
+        instrument.position.y = -0.6 + (i * 0.4);
+        instrument.position.z = 0.4;
+        group.add(instrument);
+    }
+
+    return group;
+}
+
+// Helper function to create antenna
+function createAntenna(size) {
+    const group = new THREE.Group();
+    const dishGeometry = new THREE.SphereGeometry(0.6 * size, 16, 16, 0, Math.PI);
+    const dishMaterial = new THREE.MeshPhongMaterial({
+        color: 0xffffff,
+        metalness: 0.8,
+        roughness: 0.2
+    });
+    const dish = new THREE.Mesh(dishGeometry, dishMaterial);
+    dish.rotation.x = Math.PI / 2;
+    dish.position.y = 1.0;
+    group.add(dish);
+    return group;
 } 

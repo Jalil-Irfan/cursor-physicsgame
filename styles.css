@@ -125,65 +125,103 @@ button:active {
     top: 1rem;
     left: 1rem;
     z-index: 100;
-    background: rgba(0, 0, 0, 0.7);
-    padding: 1.5rem;
-    border-radius: 1rem;
-    font-size: 1.1rem;
-    backdrop-filter: blur(5px);
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
-    border: 1px solid rgba(0, 255, 255, 0.1);
-    transition: all 0.3s ease;
-    min-width: 200px;
-}
-
-#game-ui:hover {
-    background: rgba(0, 0, 0, 0.8);
-    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 300px;
 }
 
 #player-info {
+    background: rgba(0, 0, 0, 0.8);
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
     display: flex;
     flex-direction: column;
-    gap: 0.8rem;
+    gap: 0.5rem;
+    border: 1px solid rgba(0, 255, 255, 0.1);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
 }
 
-#player-info span {
-    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+#sponsor-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#sponsor-logo img {
+    height: 24px;
+    width: auto;
+}
+
+#player-display {
+    color: #00ffff;
+    font-weight: bold;
+}
+
+#timer, #score {
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: #fff;
+}
+
+#nearest-lagrange {
+    color: #00ff00;
+    font-size: 0.9rem;
+}
+
+#balance-status {
+    color: #ffd700;
+    font-size: 0.9rem;
+}
+
+#sponsor-satisfaction {
+    color: #00ffff;
+    font-size: 0.9rem;
+    font-weight: bold;
 }
 
 #controls-hint {
-    position: absolute;
-    bottom: 2rem;
+    position: fixed;
+    bottom: 1rem;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 100;
-    background: rgba(0, 0, 0, 0.7);
-    padding: 1rem 2rem;
-    border-radius: 1rem;
-    font-size: 0.9rem;
-    backdrop-filter: blur(5px);
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
-    border: 1px solid rgba(0, 255, 255, 0.1);
-    transition: all 0.3s ease;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
     text-align: center;
-    min-width: 200px;
-    max-width: 90%;
-    margin: 0 auto;
+    border: 1px solid rgba(0, 255, 255, 0.1);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
 }
 
 #controls-hint p {
-    margin: 0.3rem 0;
-    color: rgba(255, 255, 255, 0.8);
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    margin: 0.2rem 0;
+    color: rgba(255, 255, 255, 0.9);
 }
 
-#joystick-container {
-    position: absolute;
-    bottom: 5rem;
-    right: 2rem;
-    z-index: 100;
-    width: 120px;
-    height: 120px;
+.mission-box {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 0.75rem;
+    border-radius: 8px;
+    max-width: 250px;
+    border: 1px solid rgba(0, 255, 255, 0.1);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+}
+
+.mission-box h3 {
+    color: #ffd700;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.mission-box p {
+    font-size: 0.8rem;
+    margin: 0.3rem 0;
+    color: rgba(255, 255, 255, 0.9);
 }
 
 @media (max-width: 768px) {
@@ -196,18 +234,29 @@ button:active {
         margin: 1rem;
     }
 
+    #game-ui {
+        max-width: 250px;
+    }
+
+    #player-info {
+        font-size: 0.8rem;
+        padding: 0.5rem;
+    }
+
+    #sponsor-logo img {
+        height: 20px;
+    }
+
+    .mission-box {
+        top: auto;
+        bottom: 5rem;
+        right: 0.5rem;
+        max-width: 200px;
+        font-size: 0.75rem;
+    }
+
     #controls-hint {
         display: none;
-    }
-
-    #joystick-container {
-        bottom: 1rem;
-        right: 1rem;
-    }
-
-    input, button {
-        padding: 0.8rem;
-        font-size: 1rem;
     }
 }
 
@@ -277,16 +326,150 @@ button:active {
     color: rgba(255, 255, 255, 0.9);
 }
 
-#balance-status {
-    font-weight: bold;
-    transition: color 0.3s ease;
-}
-
-#score, #timer {
-    font-family: monospace;
-    font-size: 1.1rem;
-}
-
 .hidden {
     display: none !important;
+}
+
+/* Sponsor Selection Screen */
+.sponsor-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.sponsor-content h2 {
+    font-size: 2.5rem;
+    margin-bottom: 2rem;
+    text-align: center;
+    color: #00ffff;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+#sponsor-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    width: 100%;
+    padding: 1rem;
+}
+
+.sponsor-card {
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+}
+
+.sponsor-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+    border-color: rgba(0, 255, 255, 0.4);
+}
+
+.sponsor-card img.sponsor-logo {
+    width: 120px;
+    height: 120px;
+    object-fit: contain;
+    margin: 0 auto;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+}
+
+.sponsor-card h3 {
+    font-size: 1.5rem;
+    color: #ffd700;
+    text-align: center;
+    margin: 0.5rem 0;
+}
+
+.sponsor-card p {
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.4;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.sponsor-card .mission-objectives,
+.sponsor-card .special-abilities {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 255, 255, 0.1);
+}
+
+.sponsor-card h4 {
+    color: #00ffff;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.sponsor-card button.select-sponsor {
+    margin-top: 1rem;
+    padding: 0.8rem 1.5rem;
+    background: linear-gradient(45deg, #00ffff, #0099ff);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.sponsor-card button.select-sponsor:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+}
+
+@media (max-width: 768px) {
+    .sponsor-content {
+        padding: 1rem;
+    }
+
+    .sponsor-content h2 {
+        font-size: 1.8rem;
+        margin-bottom: 1.5rem;
+    }
+
+    #sponsor-cards {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .sponsor-card {
+        padding: 1rem;
+    }
+
+    .sponsor-card img.sponsor-logo {
+        width: 80px;
+        height: 80px;
+    }
+
+    .sponsor-card h3 {
+        font-size: 1.2rem;
+    }
+
+    .sponsor-card p {
+        font-size: 0.8rem;
+    }
+}
+
+#joystick-container {
+    position: absolute;
+    bottom: 5rem;
+    right: 2rem;
+    z-index: 100;
+    width: 120px;
+    height: 120px;
 } 
