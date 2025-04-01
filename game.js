@@ -1609,4 +1609,85 @@ document.addEventListener('DOMContentLoaded', () => {
     if (restartButton) {
         restartButton.addEventListener('click', restartGame);
     }
-}); 
+});
+
+// Function to get adjusted movement parameters based on sponsor
+function getMovementParameters() {
+    if (!currentSponsor) return {
+        thrustPower: THRUST_POWER,
+        maxVelocity: MAX_VELOCITY,
+        dampening: DAMPENING
+    };
+
+    // Adjust parameters based on sponsor
+    switch(currentSponsor.name) {
+        case 'SpaceX':
+            return {
+                thrustPower: THRUST_POWER * 0.95,    // Slightly higher than NASA but much more controlled
+                maxVelocity: MAX_VELOCITY * 0.95,    // Match NASA's velocity cap
+                dampening: 0.998                     // Same stability as NASA
+            };
+        case 'NASA':
+            return {
+                thrustPower: THRUST_POWER * 0.9,     // Base NASA configuration (good control)
+                maxVelocity: MAX_VELOCITY * 0.9,
+                dampening: 0.998                     // High stability
+            };
+        case 'European Space Agency':
+            return {
+                thrustPower: THRUST_POWER * 0.92,    // Slightly more thrust than NASA
+                maxVelocity: MAX_VELOCITY * 0.92,
+                dampening: 0.997                     // Good stability
+            };
+        default:
+            return {
+                thrustPower: THRUST_POWER,
+                maxVelocity: MAX_VELOCITY,
+                dampening: DAMPENING
+            };
+    }
+}
+
+function updateProbeMovement() {
+    if (!probe || !gameActive) return;
+
+    const movementParams = getMovementParameters();
+    
+    // Apply thrust based on input
+    if (keys.w || keys.ArrowUp) probe.velocity.y += movementParams.thrustPower;
+    if (keys.s || keys.ArrowDown) probe.velocity.y -= movementParams.thrustPower;
+    if (keys.a || keys.ArrowLeft) probe.velocity.x -= movementParams.thrustPower;
+    if (keys.d || keys.ArrowRight) probe.velocity.x += movementParams.thrustPower;
+    if (keys.q) probe.velocity.z += movementParams.thrustPower;
+    if (keys.e) probe.velocity.z -= movementParams.thrustPower;
+    
+    // Apply dampening
+    probe.velocity.multiplyScalar(movementParams.dampening);
+    
+    // Limit maximum velocity
+    const currentSpeed = probe.velocity.length();
+    if (currentSpeed > movementParams.maxVelocity) {
+        probe.velocity.multiplyScalar(movementParams.maxVelocity / currentSpeed);
+    }
+    
+    // Update position
+    probe.position.add(probe.velocity);
+    
+    // Update rotation based on movement
+    if (probe.velocity.length() > MIN_VELOCITY) {
+        probe.rotation.x += probe.velocity.y * ROTATION_SPEED;
+        probe.rotation.y += probe.velocity.x * ROTATION_SPEED;
+        probe.rotation.z += (probe.velocity.z * ROLL_SPEED);
+    }
+    
+    // Emergency brake (space bar)
+    if (keys[' ']) {
+        probe.velocity.multiplyScalar(0.8);
+    }
+    
+    // Keep probe within boundaries
+    probe.position.clamp(
+        new THREE.Vector3(MIN_BOUNDARY, MIN_BOUNDARY, MIN_BOUNDARY),
+        new THREE.Vector3(MAX_BOUNDARY, MAX_BOUNDARY, MAX_BOUNDARY)
+    );
+} 
