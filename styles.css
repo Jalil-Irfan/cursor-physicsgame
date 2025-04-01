@@ -765,4 +765,121 @@ button:active {
         font-size: 1rem;
         padding: 0.8rem 1.5rem;
     }
+}
+
+/* Music Player UI */
+.music-player {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 8px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.music-player button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 4px;
+    font-size: 16px;
+    transition: all 0.2s ease;
+}
+
+.music-player button:hover {
+    color: #00ffff;
+    transform: scale(1.1);
+}
+
+.music-player .track-info {
+    color: white;
+    font-size: 12px;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.music-player .volume-control {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.music-player .volume-slider {
+    width: 60px;
+    height: 4px;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    outline: none;
+}
+
+.music-player .volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #00ffff;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.music-player .playlist-menu {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    background: rgba(0, 0, 0, 0.9);
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 8px;
+    display: none;
+    min-width: 200px;
+    max-height: 300px;
+    overflow-y: auto;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.music-player .playlist-menu.show {
+    display: block;
+}
+
+.music-player .playlist-item {
+    padding: 8px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.music-player .playlist-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #00ffff;
+}
+
+.music-player .playlist-item.active {
+    color: #00ffff;
+    font-weight: bold;
+}
+
+@media (max-width: 768px) {
+    .music-player {
+        bottom: 80px;
+        right: 10px;
+        padding: 6px;
+    }
+
+    .music-player .track-info {
+        max-width: 100px;
+    }
+
+    .music-player .volume-slider {
+        width: 40px;
+    }
 } 

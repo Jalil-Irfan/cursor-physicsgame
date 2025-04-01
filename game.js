@@ -48,6 +48,366 @@ let portal, portalRing, portalLabel;
 let sponsorSystem;
 let currentSponsor;
 
+// Sound system
+const SoundSystem = {
+    sounds: {},
+    backgroundMusic: null,
+    isMuted: false,
+    isInitialized: false,
+    currentTrackIndex: 0,
+    isPlaying: false,
+    audioContext: null,
+    gainNode: null,
+    playlist: [
+        {
+            name: "Space Journey",
+            url: "audio/bgm-0.mp3"
+        },
+        {
+            name: "Cosmic Dreams",
+            url: "audio/bgm-1.mp3"
+        },
+        {
+            name: "Stellar Path",
+            url: "audio/bgm-2.mp3"
+        }
+    ],
+
+    createMusicPlayerUI() {
+        const player = document.createElement('div');
+        player.className = 'music-player';
+        player.innerHTML = `
+            <button class="playlist-toggle">🎵</button>
+            <div class="track-info">${this.playlist[0].name}</div>
+            <button class="prev-track">⏮</button>
+            <button class="play-pause">▶</button>
+            <button class="next-track">⏭</button>
+            <div class="volume-control">
+                <button class="mute-toggle">🔊</button>
+                <input type="range" class="volume-slider" min="0" max="100" value="25">
+            </div>
+            <div class="playlist-menu">
+                ${this.playlist.map((track, index) => `
+                    <div class="playlist-item ${index === 0 ? 'active' : ''}" data-index="${index}">
+                        ${track.name}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        document.body.appendChild(player);
+
+        // Add event listeners
+        const playPauseBtn = player.querySelector('.play-pause');
+        const prevBtn = player.querySelector('.prev-track');
+        const nextBtn = player.querySelector('.next-track');
+        const muteBtn = player.querySelector('.mute-toggle');
+        const volumeSlider = player.querySelector('.volume-slider');
+        const playlistToggle = player.querySelector('.playlist-toggle');
+        const playlistMenu = player.querySelector('.playlist-menu');
+
+        playPauseBtn.addEventListener('click', () => {
+            this.togglePlay();
+            this.updatePlayPauseButton();
+        });
+
+        prevBtn.addEventListener('click', () => {
+            this.prevTrack();
+            this.updatePlayPauseButton();
+        });
+
+        nextBtn.addEventListener('click', () => {
+            this.nextTrack();
+            this.updatePlayPauseButton();
+        });
+
+        muteBtn.addEventListener('click', () => {
+            this.toggleMute();
+            this.updatePlayPauseButton();
+        });
+
+        volumeSlider.addEventListener('input', (e) => {
+            this.setVolume(e.target.value);
+        });
+
+        playlistToggle.addEventListener('click', () => {
+            playlistMenu.classList.toggle('show');
+        });
+        
+        // Close playlist when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!player.contains(e.target)) {
+                playlistMenu.classList.remove('show');
+            }
+        });
+
+        // Playlist item click handlers
+        player.querySelectorAll('.playlist-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const index = parseInt(item.dataset.index);
+                this.playTrack(index);
+                playlistMenu.classList.remove('show');
+                this.updatePlayPauseButton();
+            });
+        });
+    },
+
+    init() {
+        if (this.isInitialized) {
+            console.debug('[Sound] System already initialized');
+            return;
+        }
+        
+        try {
+            // Initialize Web Audio API
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+                this.audioContext = new AudioContext();
+                this.gainNode = this.audioContext.createGain();
+                this.gainNode.connect(this.audioContext.destination);
+                console.debug('[Sound] Web Audio API initialized');
+            } else {
+                console.warn('[Sound] Web Audio API not supported');
+            }
+
+            // Background music
+            this.backgroundMusic = new Audio();
+            this.backgroundMusic.loop = true;
+            this.backgroundMusic.volume = 0.25; // Reduced from 0.3 to 0.25 (25% reduction)
+            this.backgroundMusic.preload = 'auto';
+
+            // Sound effects
+            this.sounds = {
+                lagrange: new Audio('audio/portal.mp3'),  // Using portal sound for Lagrange points
+                portal: new Audio('audio/portal.mp3'),
+                gameOver: new Audio('audio/game-over.mp3')
+            };
+
+            // Set volume and preload for sound effects
+            Object.values(this.sounds).forEach(sound => {
+                sound.volume = 0.4;
+                sound.preload = 'auto';
+            });
+
+            // Create music player UI
+            this.createMusicPlayerUI();
+            
+            // Initialize audio context on user interaction
+            document.addEventListener('click', () => this.initializeAudio(), { once: true });
+            document.addEventListener('touchstart', () => this.initializeAudio(), { once: true });
+            
+            this.isInitialized = true;
+            console.debug('[Sound] System initialized successfully');
+        } catch (error) {
+            console.error('[Sound] Initialization failed:', error);
+        }
+    },
+
+    initializeAudio() {
+        if (this.audioContext) {
+            this.audioContext.resume();
+            console.debug('[Sound] Audio context resumed');
+        }
+        this.playTrack(0);
+    },
+
+    togglePlay() {
+        if (this.isPlaying) {
+            this.pause();
+        } else {
+            this.play();
+        }
+        this.updatePlayPauseButton();
+    },
+
+    play() {
+        if (this.backgroundMusic) {
+            this.backgroundMusic.play().catch(error => {
+                console.error('[Sound] Audio playback failed:', error);
+            });
+            this.isPlaying = true;
+        }
+    },
+
+    pause() {
+        if (this.backgroundMusic) {
+            this.backgroundMusic.pause();
+            this.isPlaying = false;
+        }
+    },
+
+    playTrack(index) {
+        if (index >= 0 && index < this.playlist.length) {
+            try {
+                this.currentTrackIndex = index;
+                const track = this.playlist[index];
+                
+                // Create a new Audio instance for each track
+                const newAudio = new Audio();
+                newAudio.loop = true;
+                newAudio.volume = this.backgroundMusic ? this.backgroundMusic.volume : 0.3;
+                
+                // Set up error handling
+                newAudio.onerror = (e) => {
+                    console.error(`[Sound] Error loading track ${track.name}:`, e);
+                    // Try to play the next track as fallback
+                    this.nextTrack();
+                };
+                
+                // Set up loading handling
+                newAudio.oncanplaythrough = () => {
+                    console.debug(`[Sound] Track ${track.name} loaded successfully`);
+                    // Only start playing if this is still the current track
+                    if (this.currentTrackIndex === index) {
+                        newAudio.play().catch(error => {
+                            console.error('[Sound] Track playback failed:', error);
+                            // Try to play the next track as fallback
+                            this.nextTrack();
+                        });
+                        this.isPlaying = true;
+                        this.updatePlayPauseButton();
+                    }
+                };
+                
+                // Set the source
+                newAudio.src = track.url;
+                
+                // Replace the old audio instance
+                if (this.backgroundMusic) {
+                    this.backgroundMusic.pause();
+                    this.backgroundMusic = null;
+                }
+                this.backgroundMusic = newAudio;
+                
+                this.updateTrackInfo();
+                this.updatePlaylistActive();
+                console.debug(`[Sound] Loading track: ${track.name}`);
+            } catch (error) {
+                console.error('[Sound] Track change failed:', error);
+                // Try to play the next track as fallback
+                this.nextTrack();
+            }
+        }
+    },
+
+    nextTrack() {
+        const nextIndex = (this.currentTrackIndex + 1) % this.playlist.length;
+        this.playTrack(nextIndex);
+    },
+
+    prevTrack() {
+        const prevIndex = (this.currentTrackIndex - 1 + this.playlist.length) % this.playlist.length;
+        this.playTrack(prevIndex);
+    },
+
+    togglePlaylist() {
+        const playlistMenu = document.querySelector('.playlist-menu');
+        playlistMenu.classList.toggle('show');
+    },
+
+    updateTrackInfo() {
+        const trackInfo = document.querySelector('.track-info');
+        if (trackInfo) {
+            trackInfo.textContent = this.playlist[this.currentTrackIndex].name;
+        }
+    },
+
+    updatePlaylistActive() {
+        document.querySelectorAll('.playlist-item').forEach((item, index) => {
+            item.classList.toggle('active', index === this.currentTrackIndex);
+        });
+    },
+
+    updatePlayPauseButton() {
+        const button = document.querySelector('.play-pause');
+        if (button) {
+            button.textContent = this.isPlaying ? '⏸' : '▶';
+        }
+    },
+
+    toggleMute() {
+        this.isMuted = !this.isMuted;
+        const button = document.querySelector('.mute-toggle');
+        if (button) {
+            button.textContent = this.isMuted ? '🔈' : '🔊';
+        }
+        
+        if (this.isMuted) {
+            this.pause();
+            Object.values(this.sounds).forEach(sound => {
+                sound.volume = 0;
+            });
+            console.debug('[Sound] System muted');
+        } else {
+            this.play();
+            Object.values(this.sounds).forEach(sound => {
+                sound.volume = 0.4;
+            });
+            console.debug('[Sound] System unmuted');
+        }
+    },
+
+    setVolume(value) {
+        try {
+            const volume = value / 100;
+            if (this.backgroundMusic) {
+                this.backgroundMusic.volume = volume;
+            }
+            if (this.gainNode) {
+                this.gainNode.gain.value = volume;
+            }
+            console.debug(`[Sound] Volume set to ${value}%`);
+        } catch (error) {
+            console.error('[Sound] Volume adjustment failed:', error);
+        }
+    },
+
+    play(soundName) {
+        if (!this.isMuted && this.sounds[soundName]) {
+            try {
+                const sound = this.sounds[soundName];
+                sound.currentTime = 0;
+                
+                // Set up error handling
+                sound.onerror = (e) => {
+                    console.error(`[Sound] Error playing effect ${soundName}:`, e);
+                };
+                
+                sound.play().catch(error => {
+                    console.error(`[Sound] Effect '${soundName}' playback failed:`, error);
+                });
+                console.debug(`[Sound] Playing effect: ${soundName}`);
+            } catch (error) {
+                console.error(`[Sound] Effect '${soundName}' failed:`, error);
+            }
+        }
+    },
+
+    startBackgroundMusic() {
+        if (!this.isMuted) {
+            try {
+                this.playTrack(this.currentTrackIndex);
+                console.debug('[Sound] Background music started');
+            } catch (error) {
+                console.error('[Sound] Background music start failed:', error);
+            }
+        }
+    },
+
+    stopBackgroundMusic() {
+        try {
+            if (this.backgroundMusic) {
+                this.pause();
+                this.backgroundMusic.currentTime = 0;
+                console.debug('[Sound] Background music stopped');
+            } else {
+                console.debug('[Sound] No background music to stop');
+            }
+        } catch (error) {
+            console.error('[Sound] Background music stop failed:', error);
+        }
+    }
+};
+
 // Check for portal entry
 function checkPortalEntry() {
     if (!probe || !portalBox || !gameActive) return;  // Added gameActive check
@@ -952,6 +1312,9 @@ function handleWin() {
         Time: ${Math.floor(gameTime)}s
     `;
     
+    // Stop background music
+    SoundSystem.stopBackgroundMusic();
+    
     // Add achievement for winning
     sponsorSystem.checkAchievements({
         stabilityTime: balanceTime,
@@ -969,6 +1332,9 @@ function handleTimeout() {
     
     const finalScore = Math.floor(score);
     const satisfaction = Math.floor(sponsorSystem.satisfaction);
+    
+    // Stop background music
+    SoundSystem.stopBackgroundMusic();
     
     if (satisfaction >= 80) {
         winMessage.innerHTML = `
@@ -1184,4 +1550,27 @@ function animatePortal() {
         }
         portal.parent.userData.particles.attributes.position.needsUpdate = true;
     }
+}
+
+function startGame() {
+    const playerName = document.getElementById('player-name').value.trim();
+    if (!playerName) {
+        alert('Please enter your name');
+        return;
+    }
+
+    // Initialize sound system if not already initialized
+    if (!SoundSystem.isInitialized) {
+        SoundSystem.init();
+    }
+
+    // Hide landing screen and show game screen
+    document.getElementById('landing-screen').style.display = 'none';
+    document.getElementById('game-screen').style.display = 'block';
+
+    // Initialize game
+    initGame();
+
+    // Start background music
+    SoundSystem.startBackgroundMusic();
 } 

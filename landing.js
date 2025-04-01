@@ -18,7 +18,17 @@ document.addEventListener('DOMContentLoaded', () => {
         window.selectedSponsor = selectedSponsor;
         sponsorScreen.classList.add('hidden');
         gameScreen.classList.remove('hidden');
+        
+        // Initialize sound system if not already initialized
+        if (!SoundSystem.isInitialized) {
+            SoundSystem.init();
+        }
+        
+        // Start the game
         initGame();
+        
+        // Start background music
+        SoundSystem.startBackgroundMusic();
     });
 
     // Handle start button click
