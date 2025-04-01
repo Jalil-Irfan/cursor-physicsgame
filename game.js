@@ -24,10 +24,10 @@ const ARROW_MIN_LENGTH = 2; // Minimum arrow length for visibility
 const ARROW_MAX_LENGTH = 15; // Maximum arrow length
 
 // Portal constants
-const PORTAL_RADIUS = 3;
+const PORTAL_RADIUS = 5;  // Reduced from 15 to 5
 const PORTAL_POSITION = new THREE.Vector3(EARTH_MOON_DISTANCE * 0.5, EARTH_MOON_DISTANCE * 0.3, 0);
 const PORTAL_COLOR = 0x00ffff;
-const PORTAL_GAME_URL = window.location.href;
+const PORTAL_GAME_URL = 'https://portal.pieter.com/';
 
 // Scene setup
 let scene, camera, renderer, controls;
@@ -50,51 +50,71 @@ let currentSponsor;
 
 // Check for portal entry
 function checkPortalEntry() {
-    if (!probe || !portal) return;
+    if (!probe || !portalBox || !gameActive) return;  // Added gameActive check
     
-    const distanceToPortal = probe.position.distanceTo(portal.position);
-    if (distanceToPortal < PORTAL_RADIUS) {
-        // Prepare portal parameters
-        const params = new URLSearchParams();
-        params.append('username', document.getElementById('player-name').value || 'unknown');
-        params.append('color', currentSponsor ? currentSponsor.colors.primary.replace('#', '') : 'ffffff');
-        params.append('speed', probe.velocity.length().toFixed(2));
-        params.append('ref', PORTAL_GAME_URL);
+    const probeBox = new THREE.Box3().setFromObject(probe);
+    const portalDistance = probeBox.getCenter(new THREE.Vector3()).distanceTo(portalBox.getCenter(new THREE.Vector3()));
+    
+    if (portalDistance < 20) {  // Reduced from 50 to 20 for better control
+        // Start loading the next page in the background
+        const currentParams = new URLSearchParams(window.location.search);
+        const newParams = new URLSearchParams();
+        newParams.append('portal', 'true');
+        newParams.append('username', document.getElementById('player-name').value || 'unknown');
+        newParams.append('color', currentSponsor ? currentSponsor.colors.primary.replace('#', '') : 'ffffff');
+        newParams.append('speed', probe.velocity.length().toFixed(2));
+        newParams.append('ref', PORTAL_GAME_URL);
         
         // Add additional parameters
-        params.append('speed_x', probe.velocity.x.toFixed(2));
-        params.append('speed_y', probe.velocity.y.toFixed(2));
-        params.append('speed_z', probe.velocity.z.toFixed(2));
-        params.append('rotation_x', probe.rotation.x.toFixed(2));
-        params.append('rotation_y', probe.rotation.y.toFixed(2));
-        params.append('rotation_z', probe.rotation.z.toFixed(2));
+        newParams.append('speed_x', probe.velocity.x.toFixed(2));
+        newParams.append('speed_y', probe.velocity.y.toFixed(2));
+        newParams.append('speed_z', probe.velocity.z.toFixed(2));
+        newParams.append('rotation_x', probe.rotation.x.toFixed(2));
+        newParams.append('rotation_y', probe.rotation.y.toFixed(2));
+        newParams.append('rotation_z', probe.rotation.z.toFixed(2));
         
-        // Redirect to portal
-        window.location.href = `http://portal.pieter.com/?${params.toString()}`;
+        const paramString = newParams.toString();
+        const nextPage = `https://portal.pieter.com?${paramString}`;
+
+        // Create hidden iframe to preload next page
+        if (!document.getElementById('preloadFrame')) {
+            const iframe = document.createElement('iframe');
+            iframe.id = 'preloadFrame';
+            iframe.style.display = 'none';
+            iframe.src = nextPage;
+            document.body.appendChild(iframe);
+        }
+
+        // Only redirect once actually in the portal and game is active
+        if (probeBox.intersectsBox(portalBox) && gameActive) {
+            window.location.href = nextPage;
+        }
     }
 }
 
 // Create portal
 function createPortal() {
     const portalGroup = new THREE.Group();
+    portalGroup.position.copy(PORTAL_POSITION);
+    portalGroup.rotation.x = 0.35;
+    portalGroup.rotation.y = 0;
     
     // Main portal ring
-    const ringGeometry = new THREE.TorusGeometry(PORTAL_RADIUS, 0.3, 16, 100);
+    const ringGeometry = new THREE.TorusGeometry(PORTAL_RADIUS, 0.5, 16, 100);  // Reduced thickness from 2 to 0.5
     const ringMaterial = new THREE.MeshPhongMaterial({
         color: PORTAL_COLOR,
         emissive: PORTAL_COLOR,
-        emissiveIntensity: 0.5,
         transparent: true,
         opacity: 0.8
     });
     portalRing = new THREE.Mesh(ringGeometry, ringMaterial);
     
-    // Portal effect (inner glow)
-    const portalGeometry = new THREE.CircleGeometry(PORTAL_RADIUS - 0.1, 32);
+    // Portal effect (inner surface)
+    const portalGeometry = new THREE.CircleGeometry(PORTAL_RADIUS - 0.5, 32);  // Adjusted for new ring thickness
     const portalMaterial = new THREE.MeshBasicMaterial({
         color: PORTAL_COLOR,
         transparent: true,
-        opacity: 0.3,
+        opacity: 0.5,
         side: THREE.DoubleSide
     });
     portal = new THREE.Mesh(portalGeometry, portalMaterial);
@@ -102,38 +122,68 @@ function createPortal() {
     // Create portal label
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
-    canvas.width = 256;
+    canvas.width = 256;  // Reduced from 512
     canvas.height = 64;
-    context.fillStyle = '#ffffff';
-    context.font = 'bold 32px Arial';
+    context.fillStyle = '#00ffff';
+    context.font = 'bold 24px Arial';  // Reduced font size
     context.textAlign = 'center';
-    context.fillText('Vibeverse Portal', canvas.width/2, canvas.height/2);
+    context.fillText('VIBEVERSE PORTAL', canvas.width/2, canvas.height/2);
     
     const labelTexture = new THREE.CanvasTexture(canvas);
-    const labelGeometry = new THREE.PlaneGeometry(4, 1);
+    const labelGeometry = new THREE.PlaneGeometry(15, 3);  // Reduced size
     const labelMaterial = new THREE.MeshBasicMaterial({
         map: labelTexture,
         transparent: true,
         side: THREE.DoubleSide
     });
     portalLabel = new THREE.Mesh(labelGeometry, labelMaterial);
-    portalLabel.position.y = PORTAL_RADIUS + 1;
+    portalLabel.position.y = 8;  // Adjusted for new portal size
+    
+    // Create particle system for portal effect
+    const particleCount = 500;  // Reduced from 1000
+    const particles = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount * 3; i += 3) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = PORTAL_RADIUS + (Math.random() - 0.5) * 2;  // Reduced spread
+        positions[i] = Math.cos(angle) * radius;
+        positions[i + 1] = Math.sin(angle) * radius;
+        positions[i + 2] = (Math.random() - 0.5) * 2;  // Reduced z-spread
+
+        colors[i] = 0;
+        colors[i + 1] = 0.8 + Math.random() * 0.2;
+        colors[i + 2] = 0.8 + Math.random() * 0.2;
+    }
+
+    particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const particleMaterial = new THREE.PointsMaterial({
+        size: 0.1,  // Reduced from 0.2
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.6
+    });
+
+    const particleSystem = new THREE.Points(particles, particleMaterial);
     
     // Add everything to the portal group
     portalGroup.add(portalRing);
     portalGroup.add(portal);
     portalGroup.add(portalLabel);
-    
-    // Position the portal
-    portalGroup.position.copy(PORTAL_POSITION);
+    portalGroup.add(particleSystem);
     
     // Add to scene
     scene.add(portalGroup);
     
-    // Add portal animation
-    portalGroup.userData.rotationSpeed = 0.001;
-    portalGroup.userData.pulseSpeed = 0.02;
-    portalGroup.userData.pulseTime = 0;
+    // Create portal collision box
+    portalBox = new THREE.Box3().setFromObject(portalGroup);
+    
+    // Store particle system for animation
+    portalGroup.userData.particles = particles;
+    portalGroup.userData.particleMaterial = particleMaterial;
 }
 
 // Handle incoming portal players
@@ -812,21 +862,7 @@ function animate() {
     }
 
     // Animate portal
-    if (portal && portalRing) {
-        const portalGroup = portal.parent;
-        portalGroup.rotation.y += portalGroup.userData.rotationSpeed;
-        
-        // Pulse effect
-        portalGroup.userData.pulseTime += portalGroup.userData.pulseSpeed;
-        const pulse = Math.sin(portalGroup.userData.pulseTime) * 0.2 + 0.8;
-        portal.material.opacity = pulse * 0.3;
-        portalRing.material.emissiveIntensity = pulse * 0.5;
-        
-        // Make label always face camera
-        if (portalLabel) {
-            portalLabel.quaternion.copy(camera.quaternion);
-        }
-    }
+    animatePortal();
 
     // Check for portal entry
     checkPortalEntry();
@@ -1136,5 +1172,16 @@ function updateProbeRotation() {
         // Apply roll based on z-axis movement
         const roll = probe.velocity.z * ROLL_SPEED;
         probe.rotation.z += roll;
+    }
+}
+
+// Update the animate function to include portal particle animation
+function animatePortal() {
+    if (portal && portal.parent && portal.parent.userData.particles) {
+        const positions = portal.parent.userData.particles.attributes.position.array;
+        for (let i = 0; i < positions.length; i += 3) {
+            positions[i + 1] += 0.05 * Math.sin(Date.now() * 0.001 + i);
+        }
+        portal.parent.userData.particles.attributes.position.needsUpdate = true;
     }
 } 
