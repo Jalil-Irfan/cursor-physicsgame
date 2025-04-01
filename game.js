@@ -3,10 +3,10 @@ const EARTH_RADIUS = 5;
 const MOON_RADIUS = 1.5;
 const PROBE_RADIUS = 0.3;
 const EARTH_MOON_DISTANCE = 30;
-const GRAVITY_CONSTANT = 0.1;
-const LAGRANGE_THRESHOLD = 2;
+const GRAVITY_CONSTANT = 0.05;
+const LAGRANGE_THRESHOLD = 4;
 const WINNING_TIME = 30; // Seconds needed to win
-const BALANCE_THRESHOLD = 2; // Distance threshold for "balanced" state
+const BALANCE_THRESHOLD = 4; // Distance threshold for "balanced" state
 const SCORE_RATE = 10; // Points per second when perfectly balanced
 const BOUNDARY_RADIUS = EARTH_MOON_DISTANCE * 2; // Boundary radius around the system
 const MIN_BOUNDARY = -BOUNDARY_RADIUS;
@@ -308,22 +308,23 @@ function onWindowResize() {
 // Handle keyboard input
 function onKeyDown(event) {
     if (window.innerWidth > 768) {
+        const moveSpeed = 0.05; // Reduced from 0.1 for finer control
         switch(event.key) {
             case 'ArrowUp':
             case 'w':
-                probe.velocity = new THREE.Vector3(0, 0.1, 0);
+                probe.velocity = new THREE.Vector3(0, moveSpeed, 0);
                 break;
             case 'ArrowDown':
             case 's':
-                probe.velocity = new THREE.Vector3(0, -0.1, 0);
+                probe.velocity = new THREE.Vector3(0, -moveSpeed, 0);
                 break;
             case 'ArrowLeft':
             case 'a':
-                probe.velocity = new THREE.Vector3(-0.1, 0, 0);
+                probe.velocity = new THREE.Vector3(-moveSpeed, 0, 0);
                 break;
             case 'ArrowRight':
             case 'd':
-                probe.velocity = new THREE.Vector3(0.1, 0, 0);
+                probe.velocity = new THREE.Vector3(moveSpeed, 0, 0);
                 break;
         }
     }
@@ -368,26 +369,26 @@ function checkLagrangeProximity() {
         }
     });
 
+    // Update UI with more detailed feedback
     if (minDistance < BALANCE_THRESHOLD) {
-        nearestLagrange.textContent = `Near ${nearestPoint} - Stay balanced!`;
+        const stabilityPercentage = Math.floor((1 - minDistance/BALANCE_THRESHOLD) * 100);
+        nearestLagrange.textContent = `At ${nearestPoint} - Stability: ${stabilityPercentage}%`;
         nearestLagrange.style.color = '#00ff00';
         
-        // Update balance time if at same point
         if (gameActive && nearestPoint === currentLagrangePoint) {
-            balanceTime += 1/60; // Assuming 60 FPS
+            balanceTime += 1/60;
             score += (SCORE_RATE * (1 - minDistance/BALANCE_THRESHOLD)) / 60;
         } else {
             currentLagrangePoint = nearestPoint;
             balanceTime = 0;
         }
         
-        // Check for win condition
         if (balanceTime >= WINNING_TIME) {
             handleWin();
         }
     } else {
-        nearestLagrange.textContent = `Distance to nearest Lagrange point: ${minDistance.toFixed(1)}`;
-        nearestLagrange.style.color = '#ffffff';
+        nearestLagrange.textContent = `Distance to ${nearestPoint}: ${minDistance.toFixed(1)} units`;
+        nearestLagrange.style.color = minDistance < BALANCE_THRESHOLD * 1.5 ? '#ffff00' : '#ffffff';
         currentLagrangePoint = null;
         balanceTime = 0;
     }
@@ -480,6 +481,14 @@ function animate() {
             probe.position.copy(newPosition);
         } else {
             probe.position.add(probe.velocity);
+        }
+
+        // Add stronger velocity dampening
+        probe.velocity.multiplyScalar(0.99); // Changed from 0.995 for more stability
+
+        // Add minimum velocity threshold to prevent endless drifting
+        if (probe.velocity.length() < 0.001) {
+            probe.velocity.set(0, 0, 0);
         }
 
         // Update boundary warning

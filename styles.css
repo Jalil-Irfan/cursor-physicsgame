@@ -20,9 +20,11 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 1000;
 }
 
-.hidden {
+.screen.hidden {
     display: none;
 }
 
@@ -332,14 +334,13 @@ button:active {
 
 /* Sponsor Selection Screen */
 .sponsor-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
     width: 100%;
     max-width: 1200px;
+    padding: 2rem;
     margin: 0 auto;
+    overflow-y: auto;
+    max-height: 100vh;
+    box-sizing: border-box;
 }
 
 .sponsor-content h2 {
@@ -356,6 +357,7 @@ button:active {
     gap: 2rem;
     width: 100%;
     padding: 1rem;
+    box-sizing: border-box;
 }
 
 .sponsor-card {
@@ -368,6 +370,8 @@ button:active {
     gap: 1rem;
     transition: all 0.3s ease;
     box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+    height: 100%;
+    box-sizing: border-box;
 }
 
 .sponsor-card:hover {
@@ -398,6 +402,7 @@ button:active {
     line-height: 1.4;
     font-size: 0.9rem;
     text-align: center;
+    margin: 0;
 }
 
 .sponsor-card .mission-objectives,
@@ -411,11 +416,11 @@ button:active {
 .sponsor-card h4 {
     color: #00ffff;
     font-size: 1rem;
-    margin-bottom: 0.5rem;
+    margin: 0 0 0.5rem 0;
 }
 
 .sponsor-card button.select-sponsor {
-    margin-top: 1rem;
+    margin-top: auto;
     padding: 0.8rem 1.5rem;
     background: linear-gradient(45deg, #00ffff, #0099ff);
     color: #000;
@@ -432,6 +437,18 @@ button:active {
     box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
 }
 
+/* Responsive styles */
+@media (max-width: 1200px) {
+    .sponsor-content {
+        padding: 1.5rem;
+    }
+
+    #sponsor-cards {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+}
+
 @media (max-width: 768px) {
     .sponsor-content {
         padding: 1rem;
@@ -445,6 +462,7 @@ button:active {
     #sponsor-cards {
         grid-template-columns: 1fr;
         gap: 1rem;
+        padding: 0.5rem;
     }
 
     .sponsor-card {
@@ -454,6 +472,7 @@ button:active {
     .sponsor-card img.sponsor-logo {
         width: 80px;
         height: 80px;
+        padding: 0.5rem;
     }
 
     .sponsor-card h3 {
@@ -461,7 +480,79 @@ button:active {
     }
 
     .sponsor-card p {
+        font-size: 0.85rem;
+    }
+
+    .sponsor-card .mission-objectives,
+    .sponsor-card .special-abilities {
+        padding: 0.8rem;
+    }
+
+    .sponsor-card h4 {
+        font-size: 0.9rem;
+    }
+
+    .sponsor-card button.select-sponsor {
+        padding: 0.7rem 1.2rem;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .sponsor-content h2 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .sponsor-card {
+        padding: 0.8rem;
+    }
+
+    .sponsor-card img.sponsor-logo {
+        width: 60px;
+        height: 60px;
+    }
+
+    .sponsor-card h3 {
+        font-size: 1.1rem;
+    }
+
+    .sponsor-card p {
         font-size: 0.8rem;
+    }
+}
+
+/* Handle landscape orientation on mobile */
+@media (max-height: 600px) and (orientation: landscape) {
+    .sponsor-content {
+        padding: 0.5rem;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .sponsor-content h2 {
+        font-size: 1.2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    #sponsor-cards {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 0.5rem;
+    }
+
+    .sponsor-card {
+        padding: 0.8rem;
+    }
+
+    .sponsor-card img.sponsor-logo {
+        width: 50px;
+        height: 50px;
+        padding: 0.3rem;
+    }
+
+    .sponsor-card .mission-objectives,
+    .sponsor-card .special-abilities {
+        padding: 0.5rem;
     }
 }
 
