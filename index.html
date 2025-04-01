@@ -3,104 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Physics Puzzle Game</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Arial', sans-serif;
-        }
-
-        body {
-            background: linear-gradient(135deg, #1e3c72, #2a5298);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-        }
-
-        #welcome-screen {
-            background: rgba(0, 0, 0, 0.5);
-            padding: 2rem;
-            border-radius: 15px;
-            text-align: center;
-            width: 90%;
-            max-width: 400px;
-            backdrop-filter: blur(10px);
-        }
-
-        h1 {
-            font-size: 1.8rem;
-            margin-bottom: 1.5rem;
-            color: #fff;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        input {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            background: rgba(255, 255, 255, 0.9);
-            transition: all 0.3s ease;
-        }
-
-        input:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
-        }
-
-        button {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            cursor: pointer;
-            margin-top: 1rem;
-            width: 100%;
-            transition: background 0.3s ease;
-        }
-
-        button:hover {
-            background: #45a049;
-        }
-
-        button:disabled {
-            background: #cccccc;
-            cursor: not-allowed;
-        }
-
-        #game-container {
-            display: none;
-            width: 100%;
-            height: 100vh;
-            position: fixed;
-            top: 0;
-            left: 0;
-        }
-
-        .error-message {
-            color: #ff6b6b;
-            margin-top: 0.5rem;
-            font-size: 0.9rem;
-            display: none;
-        }
-    </style>
+    <title>Lagrange Drift</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nipplejs@0.10.1/dist/nipplejs.min.js"></script>
 </head>
 <body>
-    <div id="welcome-screen">
-        <h1>Physics Puzzle Game</h1>
-        <input type="text" id="username-input" placeholder="Enter your username" maxlength="15" autocomplete="off">
-        <p id="error-message" class="error-message">Username must be at least 3 characters</p>
-        <button id="start-button" disabled>Start Game</button>
+    <div id="landing-screen" class="screen">
+        <div class="landing-content">
+            <h1>Lagrange Drift</h1>
+            <div class="game-description">
+                <p>Balance your satellite at any Lagrange point for 30 seconds to win!</p>
+                <p>The closer you stay to the center of a Lagrange point, the faster you'll score points.</p>
+            </div>
+            <div class="input-container">
+                <input type="text" id="player-name" placeholder="Enter your name" maxlength="20">
+                <button id="start-game">Start Game</button>
+            </div>
+        </div>
     </div>
-    <div id="game-container"></div>
-    <script type="module" src="/src/index.js"></script>
+
+    <div id="game-screen" class="screen hidden">
+        <div id="game-ui">
+            <div id="player-info">
+                <span id="player-display"></span>
+                <span id="timer">Time: 0s</span>
+                <span id="score">Score: 0</span>
+                <span id="nearest-lagrange"></span>
+                <span id="balance-status"></span>
+            </div>
+            <div id="controls-hint">
+                <p>Use WASD or Arrow keys to move</p>
+                <p>Drag to orbit camera</p>
+            </div>
+        </div>
+        <div id="joystick-container"></div>
+        <div id="win-screen" class="hidden">
+            <div class="win-content">
+                <h2>Congratulations!</h2>
+                <p id="win-message"></p>
+                <button id="restart-game">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+    <script src="landing.js"></script>
 </body>
 </html> 

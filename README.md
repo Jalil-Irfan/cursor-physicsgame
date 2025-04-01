@@ -1,128 +1,84 @@
-# 3D Physics Puzzle Game
+# Lagrange Drift
 
-A modern 3D physics-based puzzle game built with Three.js and Cannon.js, featuring portal mechanics and cross-game connectivity.
+A 3D space game that simulates the Earth-Moon system and its Lagrange points. Players control a probe and navigate through the gravitational field between Earth and Moon.
 
 ## Features
 
-- Physics-based gameplay using Cannon.js
-- 3D graphics with Three.js
-- Mobile-friendly controls with Nipple.js
-- Portal system for cross-game connectivity
-- Global leaderboard using Firebase
-- Responsive UI with modern design
-- Sound effects and background music
-- Multiple levels with increasing difficulty
+- Realistic Earth-Moon system with proper relative sizes and distances
+- Five Lagrange points (L1-L5) marked with glowing indicators
+- Player-controlled probe with simplified physics simulation
+- Visual representation of gravitational forces
+- Mobile-friendly controls with virtual joystick
+- Desktop controls with WASD/Arrow keys
+- Camera orbit controls for scene inspection
+- Responsive design that works on both desktop and mobile devices
 
-## Technical Stack
-
-- Three.js for 3D rendering
-- Cannon.js for physics engine
-- Nipple.js for mobile controls
-- Firebase for leaderboard/storage
-- Web Audio API for sound management
-- Vite for build tooling
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v14 or higher)
-- npm or yarn
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/physics-puzzle-game.git
-cd physics-puzzle-game
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Start the development server:
-```bash
-npm start
-```
-
-4. Build for production:
-```bash
-npm run build
-```
-
-### Project Structure
-
-```
-physics-puzzle-game/
-├── public/
-│   ├── audio/           # Sound effects and music
-│   ├── levels/          # Level definitions
-│   └── models/          # 3D models
-├── src/
-│   ├── core/           # Core game components
-│   │   ├── Game.js
-│   │   ├── Player.js
-│   │   └── Portal.js
-│   ├── managers/       # Game managers
-│   │   ├── AudioManager.js
-│   │   ├── LevelManager.js
-│   │   └── UIManager.js
-│   └── index.js        # Entry point
-├── index.html
-├── package.json
-└── vite.config.js
-```
-
-## Game Controls
+## Controls
 
 ### Desktop
-- WASD/Arrow keys: Movement
-- Spacebar: Jump
-- Mouse: Camera control
-- ESC: Pause menu
+- WASD or Arrow keys: Move the probe
+- Mouse drag: Orbit camera around the scene
+- Mouse scroll: Zoom in/out
 
 ### Mobile
-- Virtual joystick: Movement
-- Tap: Jump
-- Swipe: Camera control
-- Menu button: Pause menu
+- Virtual joystick: Move the probe
+- Touch and drag: Orbit camera around the scene
+- Pinch to zoom: Zoom in/out
 
-## Portal System
+## Technical Details
 
-The game features a portal system that allows players to connect with other games in the Vibeverse. When entering a portal, the game will redirect to the next game while preserving player data such as:
-- Username
-- Player color
-- Movement speed
-- Reference to the previous game
+The game is built using:
+- Three.js for 3D rendering
+- NippleJS for mobile joystick controls
+- Vanilla JavaScript for game logic
+- CSS for responsive design
 
-## Level Design
+## Setup
 
-Levels are defined using JSON files in the `public/levels` directory. Each level includes:
-- Ground configuration
-- Obstacle placement
-- Collectible items
-- Portal locations
-- Lighting setup
-- Time limit
+1. Clone the repository
+2. Open `index.html` in a modern web browser
+3. Enter your name and start playing!
 
-## Contributing
+## Physics Simulation
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+The game uses a simplified gravitational model:
+- Earth's mass is normalized to 1
+- Moon's mass is 0.0123 (relative to Earth)
+- Gravitational forces are calculated using Newton's law of universal gravitation
+- Lagrange points are positioned at their approximate locations in the Earth-Moon system
 
-## License
+## Browser Support
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+The game works best in modern browsers that support WebGL:
+- Chrome (recommended)
+- Firefox
+- Safari
+- Edge 
 
-## Acknowledgments
-
-- Three.js team for the amazing 3D library
-- Cannon.js team for the physics engine
-- Nipple.js creator for mobile controls
-- Firebase team for the backend services
-- Vite team for the build tooling 
+Objective:
+Balance your satellite at any Lagrange point for 30 seconds to win
+The closer you stay to the center of a Lagrange point, the more points you earn
+Scoring System:
+Score increases while you're within the balance threshold of any Lagrange point
+The closer you are to the exact Lagrange point, the faster you score
+Maximum score rate is 10 points per second when perfectly centered
+Winning Conditions:
+Stay within 2 units of any Lagrange point for 30 consecutive seconds
+You can switch between different Lagrange points, but the timer will reset
+The game tracks your total time and score
+UI Feedback:
+Timer shows your total game time
+Score display shows your current score
+Balance status shows how long you've been balanced at the current point
+Color indicators show when you're in a good position
+Win Screen:
+Shows congratulations message
+Displays your final score
+Offers a "Play Again" button to restart
+To win the game:
+Navigate to any Lagrange point (marked by green spheres)
+Try to stay as close to the center as possible
+Maintain position for 30 seconds
+Use the gravitational forces to help maintain your position
+The closer you stay to the center, the higher your score will be
+The game is now more challenging and engaging with clear objectives and feedback. Would you like me to adjust any of these parameters (like the winning time or score rate) to make it easier or more challenging?
