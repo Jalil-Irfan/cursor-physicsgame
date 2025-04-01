@@ -471,6 +471,87 @@ const SoundSystem = {
     }
 };
 
+// Social Links System
+window.SocialLinksSystem = {
+    isInitialized: false,
+    
+    init() {
+        if (this.isInitialized) {
+            console.debug('[Social] System already initialized');
+            return;
+        }
+        
+        this.createSocialUI();
+        this.isInitialized = true;
+        console.debug('[Social] System initialized successfully');
+    },
+
+    createSocialUI() {
+        // Create anchor
+        const anchor = document.createElement('div');
+        anchor.className = 'social-anchor';
+        anchor.innerHTML = `
+            <span>🔗</span>
+            <span>Let's Connect</span>
+        `;
+        anchor.title = 'Social Links';
+        document.body.appendChild(anchor);
+
+        // Create modal overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        document.body.appendChild(overlay);
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'social-modal';
+        modal.innerHTML = `
+            <button class="close-modal">✕</button>
+            <h2>Connect With Me</h2>
+            <div class="social-links">
+                <a href="https://instagram.com/jalil.irfan" target="_blank" class="social-link">
+                    <img src="https://cdn.jsdelivr.net/npm/simple-icons@v5/icons/instagram.svg" alt="Instagram">
+                    <span>Follow on Instagram</span>
+                </a>
+                <a href="https://linkedin.com/in/jalil-irfan" target="_blank" class="social-link">
+                    <img src="https://cdn.jsdelivr.net/npm/simple-icons@v5/icons/linkedin.svg" alt="LinkedIn">
+                    <span>Connect on LinkedIn</span>
+                </a>
+                <a href="https://www.youtube.com/@uyar_kaanoli" target="_blank" class="social-link">
+                    <img src="https://cdn.jsdelivr.net/npm/simple-icons@v5/icons/youtube.svg" alt="YouTube">
+                    <span>Subscribe on YouTube</span>
+                </a>
+                <a href="https://www.facebook.com/kaanoli_odai" target="_blank" class="social-link">
+                    <img src="https://cdn.jsdelivr.net/npm/simple-icons@v5/icons/facebook.svg" alt="Facebook">
+                    <span>Follow on Facebook</span>
+                </a>
+                <a href="https://ko-fi.com/nandri" target="_blank" class="social-link">
+                    <img src="https://cdn.jsdelivr.net/npm/simple-icons@v5/icons/kofi.svg" alt="Ko-fi">
+                    <span>Support on Ko-fi</span>
+                </a>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Add event listeners
+        anchor.addEventListener('click', () => {
+            modal.classList.add('show');
+            overlay.classList.add('show');
+        });
+
+        const closeBtn = modal.querySelector('.close-modal');
+        closeBtn.addEventListener('click', () => {
+            modal.classList.remove('show');
+            overlay.classList.remove('show');
+        });
+
+        overlay.addEventListener('click', () => {
+            modal.classList.remove('show');
+            overlay.classList.remove('show');
+        });
+    }
+};
+
 // Check for portal entry
 function checkPortalEntry() {
     if (!probe || !portalBox || !gameActive) return;  // Added gameActive check
@@ -662,6 +743,10 @@ function initGame() {
             <p>Time Limit: ${currentSponsor.objectives.timeLimit}s</p>
         </div>
     `;
+
+    // Initialize systems
+    SoundSystem.init();
+    SocialLinksSystem.init();  // Initialize social links
 
     // Scene setup
     scene = new THREE.Scene();
@@ -1616,15 +1701,14 @@ function animatePortal() {
 }
 
 function startGame() {
-    const playerName = document.getElementById('player-name').value.trim();
-    if (!playerName) {
-        alert('Please enter your name');
-        return;
-    }
-
     // Initialize sound system if not already initialized
     if (!SoundSystem.isInitialized) {
         SoundSystem.init();
+    }
+
+    // Initialize social links if not already initialized
+    if (!SocialLinksSystem.isInitialized) {
+        SocialLinksSystem.init();
     }
 
     // Hide landing screen and show game screen
@@ -1672,6 +1756,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (restartButton) {
         restartButton.addEventListener('click', restartGame);
     }
+
 });
 
 // Function to get adjusted movement parameters based on sponsor
